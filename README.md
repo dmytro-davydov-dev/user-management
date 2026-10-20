@@ -2,7 +2,7 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phase 1 (monorepo bootstrap) is done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+> **Status:** work in progress. Phases 1–3 (bootstrap, persistence, users API) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
 ## Architecture
 
@@ -61,6 +61,8 @@ docs/             Implementation plans
 | PATCH  | `/users/:id`            | Session     |
 | DELETE | `/users/:id`            | Session     |
 
+Users endpoints: `GET /users` returns `{ data, pagination: { page, limit, total, totalPages } }`, newest first; `limit` is capped at 6. `PATCH /users/:id` accepts only `firstName`, `lastName` and `status`; the status change is applied first, so reactivating and renaming in one request works, while deactivating and renaming is rejected with `403 USER_INACTIVE`. `DELETE /users/:id` returns 204 and removes the user's sessions.
+
 ## Tech stack
 
 Node 22 · TypeScript 5.9 (strict) · pnpm workspaces · Next.js 15 · NestJS 11 · Prisma · PostgreSQL 16 · Vitest · Supertest · React Testing Library · Playwright · Docker Compose
@@ -78,6 +80,15 @@ pnpm typecheck
 pnpm lint
 pnpm test
 ```
+
+API tests:
+
+```bash
+pnpm --filter @um/api test       # unit tests
+pnpm --filter @um/api test:int   # integration tests against real PostgreSQL
+```
+
+Integration tests never touch the dev database: they use `TEST_DATABASE_URL`, or `DATABASE_URL` with `_test` appended to the database name, which the test setup creates and migrates automatically. Start the database first (`docker compose up -d db`).
 
 Docker Compose (once the services land):
 

@@ -83,19 +83,29 @@ Commit: `feat(api): add user and session persistence`
 
 Commit: `feat(api): implement user management`
 
-- [ ] **T3.1** Global `ValidationPipe`/Zod pipe (whitelist, forbid unknown), global exception filter mapping to `{ code, message, details? }`; Prisma P2002 → 409, P2025 → 404, connection errors → 503. *Done when:* unit tests cover each mapping.
-- [ ] **T3.2** `UsersService.list(page, limit)`: order `createdAt DESC, id DESC`, `limit` fixed max 6, `page >= 1`, returns `{ data, pagination: { page, limit, total, totalPages } }`. *Done when:* page beyond last returns empty `data` with correct totals.
-- [ ] **T3.3** `UsersService.create`: trim names, reject empty, hash password, default ACTIVE. *Done when:* response never contains `passwordHash`.
-- [ ] **T3.4** `UsersService.update`: DTO allows only `firstName`, `lastName`, `status`; name change uses conditional update `WHERE id = ? AND status = 'ACTIVE'` in the same transaction as any status change; inactive + name change → 403 `USER_INACTIVE`. *Done when:* reactivating and renaming in one request is ordered status-first (documented).
-- [ ] **T3.5** `UsersService.delete`: transaction deletes sessions then user (or cascade). *Done when:* deleted user's session gets 401.
-- [ ] **T3.6** `UsersController`: `GET /users`, `POST /users`, `PATCH /users/:id` (ParseUUIDPipe), `DELETE /users/:id` (204). *Done when:* Supertest suite green.
-- [ ] **T3.7** User serializer/mapper used by every response path. *Done when:* a test asserts no response body includes `password`.
+*Status:* done — 29 unit + 24 integration tests green. Integration tests use a separate `<db>_test` database (or `TEST_DATABASE_URL`), created and migrated by the Vitest global setup, so they never truncate dev data.
+
+- [x] **T3.1** Global `ValidationPipe`/Zod pipe (whitelist, forbid unknown), global exception filter mapping to `{ code, message, details? }`; Prisma P2002 → 409, P2025 → 404, connection errors → 503. *Done when:* unit tests cover each mapping.
+  - *Note:* per-route `ZodValidationPipe` with the shared `.strict()` schemas (unknown keys → 400 with `details[{ path, message }]`); global `ApiExceptionFilter` via `APP_FILTER`. Also maps malformed JSON → 400 and pg driver connection errors (`ECONNREFUSED` etc.) → 503; unknown errors → generic 500.
+- [x] **T3.2** `UsersService.list(page, limit)`: order `createdAt DESC, id DESC`, `limit` fixed max 6, `page >= 1`, returns `{ data, pagination: { page, limit, total, totalPages } }`. *Done when:* page beyond last returns empty `data` with correct totals.
+  - *Note:* `limit` above 6 → 400 rather than silently clamped.
+- [x] **T3.3** `UsersService.create`: trim names, reject empty, hash password, default ACTIVE. *Done when:* response never contains `passwordHash`.
+  - *Note:* duplicate email → 409 `EMAIL_TAKEN` (emails are lower-cased by the shared schema).
+- [x] **T3.4** `UsersService.update`: DTO allows only `firstName`, `lastName`, `status`; name change uses conditional update `WHERE id = ? AND status = 'ACTIVE'` in the same transaction as any status change; inactive + name change → 403 `USER_INACTIVE`. *Done when:* reactivating and renaming in one request is ordered status-first (documented).
+  - *Note:* status applied first in one transaction: reactivate + rename succeeds; deactivate + rename → 403 and nothing is written.
+- [x] **T3.5** `UsersService.delete`: transaction deletes sessions then user (or cascade). *Done when:* deleted user's session gets 401.
+  - *Note:* relies on the `ON DELETE CASCADE` FK; integration test asserts the session row is gone. The "subsequent 401" check lands with the session guard (T4.5).
+- [x] **T3.6** `UsersController`: `GET /users`, `POST /users`, `PATCH /users/:id` (ParseUUIDPipe), `DELETE /users/:id` (204). *Done when:* Supertest suite green.
+  - *Note:* endpoints are unauthenticated until the session guard lands in Phase 4.
+- [x] **T3.7** User serializer/mapper used by every response path. *Done when:* a test asserts no response body includes `password`.
+  - *Note:* `publicUserSelect` never reads `passwordHash`; `toPublicUser` copies fields explicitly.
 
 ### Phase 4 — Authentication & sessions
 
 Commit: `feat(auth): implement session authentication`
 
-- [ ] **T4.1** `PasswordService` (argon2id hash/verify), min length 8. *Done when:* unit tests for hash/verify/mismatch.
+- [x] **T4.1** `PasswordService` (argon2id hash/verify), min length 8. *Done when:* unit tests for hash/verify/mismatch.
+  - *Note:* pulled forward into Phase 3 (needed by `POST /users`): `PasswordService` + `PasswordModule`, unit-tested.
 - [ ] **T4.2** `SessionsService.createForUser(userId)`: one transaction — lock user row (`SELECT … FOR UPDATE`), reject INACTIVE (403), insert session with `expiresAt`, increment `loginsCount`. *Done when:* concurrent-signin test shows count == sessions created.
 - [ ] **T4.3** `POST /auth/sign-up`: create user + session in one transaction; 409 on duplicate email; returns `{ id: sessionId, user }`. Signup counts as first login (`loginsCount = 1`). *Done when:* integration test passes.
 - [ ] **T4.4** `POST /auth/sign-in`: verify credentials (constant-time path for unknown email), call `createForUser`; 401 on bad credentials, 403 on inactive. *Done when:* inactive sign-in test passes.
