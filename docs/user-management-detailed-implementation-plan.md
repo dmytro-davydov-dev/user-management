@@ -126,12 +126,20 @@ Commit: `feat(auth): implement session authentication`
 
 Commit: `feat(web): add app shell and session integration`
 
-- [ ] **T5.1** Scaffold Next.js 15 in `apps/web` (App Router, `output: 'standalone'`). *Done when:* `pnpm --filter web build` succeeds.
-- [ ] **T5.2** BFF route handlers under `app/api/[...path]/route.ts`: forward to `API_INTERNAL_URL`, inject `X-Session-Id` from HttpOnly cookie `sid`, pass status + body through. *Done when:* browser never sees the API host or the session ID.
-- [ ] **T5.3** BFF auth handlers: `sign-up`/`sign-in` set cookie `sid` (HttpOnly, SameSite=Lax, Secure via env, Max-Age = TTL) and return user only; `sign-out` calls `DELETE /sessions/:id` and clears cookie. *Done when:* cookie flags verified in a test.
+*Status:* implemented — 36 web unit/component tests green; build, lint and typecheck clean. Verified against the real API with curl and headless Chromium (redirects, cookie flags, stale-cookie recovery, sign-out; console clean). T5.4 and T5.6 stay open until their Playwright checks (E1) land in Phase 9.
+
+- [x] **T5.1** Scaffold Next.js 15 in `apps/web` (App Router, `output: 'standalone'`). *Done when:* `pnpm --filter web build` succeeds.
+  - *Note:* Next `15.5.28`, React `19.1`, MUI `6.5` (per locked decisions). `outputFileTracingRoot` = repo root for the monorepo standalone bundle; `next.config.ts` loads the root `.env` for host-side dev. `typecheck` runs `next typegen` first, and `next-env.d.ts` is gitignored, so a clean clone typechecks. System font stack (no Google Fonts fetch at build time). `next start` warns under `standalone`; the Docker image will run `server.js` (T10.2). Lint adds `@next/eslint-plugin-next` + `eslint-plugin-react-hooks`.
+- [x] **T5.2** BFF route handlers under `app/api/[...path]/route.ts`: forward to `API_INTERNAL_URL`, inject `X-Session-Id` from HttpOnly cookie `sid`, pass status + body through. *Done when:* browser never sees the API host or the session ID.
+  - *Note:* allowlist: only `users` and `users/:id` are proxied; anything else is 404, because `/auth/*` and `/sessions` responses contain session IDs. Browser cookies are never forwarded upstream. No cookie → 401 without calling the API; upstream 401 → cookie cleared; API unreachable → 503. Cross-site mutations (`Origin` mismatch or `Sec-Fetch-Site: cross-site`) → 403, on top of SameSite=Lax.
+- [x] **T5.3** BFF auth handlers: `sign-up`/`sign-in` set cookie `sid` (HttpOnly, SameSite=Lax, Secure via env, Max-Age = TTL) and return user only; `sign-out` calls `DELETE /sessions/:id` and clears cookie. *Done when:* cookie flags verified in a test.
+  - *Note:* also `GET /api/auth/me` (returns `{ user }`, session stripped) and `GET /api/auth/clear-session?next=` (see T5.4). Sign-out clears the cookie even if the API is unreachable; it never puts a non-UUID cookie value into the API path. Sign-in/up also reject cross-site requests (login CSRF).
 - [ ] **T5.4** `middleware.ts`: no `sid` on `/dashboard` → redirect `/sign-in`; `sid` on auth pages → `/dashboard`. Server components confirm via `/auth/me` (cookie presence alone is not trusted). *Done when:* E2E route-protection test passes.
-- [ ] **T5.5** MUI setup with `AppRouterCacheProvider`, light/dark themes, TanStack Query provider, typed `apiClient` with central 401 → redirect. *Done when:* a 401 from any query lands on `/sign-in`.
+  - *Note:* implemented and unit-tested; E2E (E1) pending Phase 9. `requireUser()` in the `(protected)` layout. A stale cookie would otherwise loop (middleware → `/dashboard` → `/sign-in` → …), and server components can't modify cookies, so they redirect to `/api/auth/clear-session`, which drops the cookie and continues to an allowlisted auth page.
+- [x] **T5.5** MUI setup with `AppRouterCacheProvider`, light/dark themes, TanStack Query provider, typed `apiClient` with central 401 → redirect. *Done when:* a 401 from any query lands on `/sign-in`.
+  - *Note:* only `401 UNAUTHORIZED` redirects (it also clears the query cache); `401 INVALID_CREDENTIALS` on sign-in does not. 4xx errors are not retried. Theme mode switches in memory; persistence comes in Phase 8. Also adds `app/error.tsx` (retry) and a favicon.
 - [ ] **T5.6** Root `/` page: `/auth/me` → `/dashboard` if authenticated, else `/sign-up`. *Done when:* both branches covered by E2E.
+  - *Note:* implemented and verified manually; E2E (E1) pending Phase 9. A stale cookie goes through `clear-session` to `/sign-up`.
 
 ### Phase 6 — Auth flows (UI)
 
@@ -147,6 +155,7 @@ Commit: `feat(web): add authentication flows`
 Commit: `feat(web): implement user dashboard`
 
 - [ ] **T7.1** Layout: app bar with current user name, theme toggle, logout. *Done when:* logout ends on `/sign-in` and the old cookie is rejected.
+  - *Note:* app bar built early in Phase 5 (`components/layout/app-shell.tsx`) and checked manually; E2E coverage still to come.
 - [ ] **T7.2** Users table: name, email, status chip, logins, created, updated; page from `?page=` search param; MUI `Pagination` with `totalPages`. *Done when:* 13 users → 3 pages of 6/6/1.
 - [ ] **T7.3** Loading skeleton, empty state, error state with retry. *Done when:* each state has a component test.
 - [ ] **T7.4** Create dialog (names, email, password, status). *Done when:* new user appears on page 1 after success.

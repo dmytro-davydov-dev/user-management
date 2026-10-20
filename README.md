@@ -2,7 +2,7 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phases 1–4 (bootstrap, persistence, users API, auth & sessions) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+> **Status:** work in progress. Phases 1–5 (bootstrap, persistence, users API, auth & sessions, web shell & BFF) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
 ## Architecture
 
@@ -85,6 +85,23 @@ pnpm lint
 pnpm test
 ```
 
+Run the stack on the host (database in Docker, apps with hot reload):
+
+```bash
+docker compose up -d db
+pnpm --filter @um/api db:migrate      # apply migrations
+pnpm --filter @um/api dev             # API on http://localhost:4000 (Swagger at /docs)
+pnpm --filter @um/web dev             # web on http://localhost:3000
+```
+
+Both apps read the repo-root `.env`.
+
+Web tests (BFF route handlers, middleware, API client):
+
+```bash
+pnpm --filter @um/web test
+```
+
 API tests:
 
 ```bash
@@ -101,9 +118,27 @@ docker compose up --build -d   # app at http://localhost:3000
 docker compose down            # add -v to wipe the database
 ```
 
+## Web app and BFF
+
+The browser only ever talks to the Next.js app. Its route handlers act as a backend-for-frontend:
+
+| BFF route                     | Does                                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------------------- |
+| `POST /api/auth/sign-up`      | Calls the API, stores the returned session ID in the `sid` cookie, returns `{ user }` |
+| `POST /api/auth/sign-in`      | Same as sign-up                                                                       |
+| `POST /api/auth/sign-out`     | `DELETE /sessions/:id` on the API, then clears the cookie (even if the API is down)   |
+| `GET /api/auth/me`            | Current `{ user }`; the session object is stripped                                    |
+| `/api/users[/:id]`            | Proxied as-is with `X-Session-Id` taken from the cookie                               |
+| `GET /api/auth/clear-session` | Drops a stale cookie and redirects to `/sign-in` or `/sign-up`                        |
+
+- The `sid` cookie is `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` = `SESSION_TTL_HOURS`, and `Secure` when `COOKIE_SECURE=true`. Browser JavaScript can never read the session ID, and the API host is never exposed.
+- Only `users` routes are proxied generically; anything that returns a session ID has a dedicated handler. State-changing requests from another origin (`Origin` / `Sec-Fetch-Site`) are rejected with 403 on top of `SameSite=Lax`.
+- When the API answers 401, the BFF clears the cookie, and the client redirects to `/sign-in`. A wrong password on sign-in (`INVALID_CREDENTIALS`) does not redirect.
+- `middleware.ts` routes optimistically on cookie presence (`/dashboard` without a cookie → `/sign-in`; auth pages with a cookie → `/dashboard`). The protected layout and `/` always confirm the session with `GET /auth/me` before rendering.
+
 ## Environment variables
 
-See [`.env.example`](.env.example): `POSTGRES_PASSWORD`, `DATABASE_URL`, `API_PORT`, `SESSION_TTL_HOURS`, `API_INTERNAL_URL`, `COOKIE_SECURE`.
+See [`.env.example`](.env.example): `POSTGRES_PASSWORD`, `DATABASE_URL`, `API_PORT`, `SESSION_TTL_HOURS` (API session TTL and web cookie lifetime), `API_INTERNAL_URL` (server-side only), `COOKIE_SECURE`.
 
 ## Conventions
 
