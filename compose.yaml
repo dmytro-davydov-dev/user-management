@@ -1,0 +1,26 @@
+# Phase 2: database only (for host-side API development).
+# api, web, migrate and e2e services are added in later phases.
+name: user-management
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
+      POSTGRES_DB: user_management
+    ports:
+      # Host port 5433 avoids clashing with a locally installed Postgres on 5432.
+      # Bound to localhost for host-side dev only; removed once the API runs in Compose.
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d user_management']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:

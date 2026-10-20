@@ -11,3 +11,6 @@ playwright-report/
 test-results/
 .DS_Store
 *.log
+
+# Prisma generated client (run `pnpm --filter @um/api db:generate`)
+apps/api/src/generated/

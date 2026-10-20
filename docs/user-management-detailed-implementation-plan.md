@@ -68,12 +68,16 @@ Commit: `chore: bootstrap TypeScript monorepo`
 
 Commit: `feat(api): add user and session persistence`
 
-- [ ] **T2.1** Scaffold NestJS app in `apps/api`; `ConfigModule` with Zod-validated env; `GET /health` (DB ping). *Done when:* app boots and `/health` returns 200.
-- [ ] **T2.2** Prisma schema: `User` (uuid id, firstName/lastName varchar(100), email unique varchar(255), passwordHash, status enum ACTIVE/INACTIVE default ACTIVE, loginsCount int default 0, createdAt default now, updatedAt `@updatedAt`), `Session` (uuid id, userId FK, createdAt, terminatedAt nullable, expiresAt). *Done when:* `prisma validate` passes.
-- [ ] **T2.3** Indexes: `users(email)` unique, `users(created_at, id)`, `sessions(user_id, terminated_at)`; FK `onDelete: Cascade` for sessions. *Done when:* migration SQL shows all three.
-- [ ] **T2.4** Initial migration + `PrismaService` with graceful shutdown. *Done when:* `prisma migrate deploy` applies on an empty DB.
-- [ ] **T2.5** Seed script: 1 known admin (dev only) + 13 random users (exercises 3 pages). *Done when:* `pnpm --filter api db:seed` is idempotent.
+- [x] **T2.1** Scaffold NestJS app in `apps/api`; `ConfigModule` with Zod-validated env; `GET /health` (DB ping). *Done when:* app boots and `/health` returns 200.
+  - *Note:* NestJS pinned to `^11` (v12 is ESM-only). `/health` returns 503 `SERVICE_UNAVAILABLE` when the DB is down. Tests via Vitest + `unplugin-swc` (decorator metadata); `test` = unit, `test:int` = real Postgres.
+- [x] **T2.2** Prisma schema: `User` (uuid id, firstName/lastName varchar(100), email unique varchar(255), passwordHash, status enum ACTIVE/INACTIVE default ACTIVE, loginsCount int default 0, createdAt default now, updatedAt `@updatedAt`), `Session` (uuid id, userId FK, createdAt, terminatedAt nullable, expiresAt). *Done when:* `prisma validate` passes.
+- [x] **T2.3** Indexes: `users(email)` unique, `users(created_at, id)`, `sessions(user_id, terminated_at)`; FK `onDelete: Cascade` for sessions. *Done when:* migration SQL shows all three.
+- [x] **T2.4** Initial migration + `PrismaService` with graceful shutdown. *Done when:* `prisma migrate deploy` applies on an empty DB.
+  - *Note:* Prisma pinned to `7.10.1` (v8 is RC): `prisma-client` generator (CJS) to gitignored `src/generated/prisma`, `prisma.config.ts`, `@prisma/adapter-pg`. Migration SQL verified on Postgres 16; confirm with `pnpm --filter api exec prisma migrate dev` locally (should report no drift).
+- [x] **T2.5** Seed script: 1 known admin (dev only) + 13 random users (exercises 3 pages). *Done when:* `pnpm --filter api db:seed` is idempotent.
+  - *Note:* admin credentials from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`; refuses `NODE_ENV=production`; matches by email, never overwrites.
 - [ ] **T2.6** `compose.yaml` with `db` only (healthcheck, named volume) for local dev. *Done when:* `docker compose up db` is healthy.
+  - *Note:* file written and `docker compose config` validated; port bound to `127.0.0.1:5433` (avoids a host Postgres on 5432) for host-side dev. Pending: run `docker compose up -d db` locally and confirm healthy.
 
 ### Phase 3 — Users API
 
