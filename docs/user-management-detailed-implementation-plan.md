@@ -104,16 +104,23 @@ Commit: `feat(api): implement user management`
 
 Commit: `feat(auth): implement session authentication`
 
+*Status:* done — 45 unit + 49 integration tests green (I1–I4, I8–I13 covered). All routes except `/health`, sign-up, sign-in and `POST /sessions` now require `X-Session-Id`.
+
 - [x] **T4.1** `PasswordService` (argon2id hash/verify), min length 8. *Done when:* unit tests for hash/verify/mismatch.
   - *Note:* pulled forward into Phase 3 (needed by `POST /users`): `PasswordService` + `PasswordModule`, unit-tested.
-- [ ] **T4.2** `SessionsService.createForUser(userId)`: one transaction — lock user row (`SELECT … FOR UPDATE`), reject INACTIVE (403), insert session with `expiresAt`, increment `loginsCount`. *Done when:* concurrent-signin test shows count == sessions created.
-- [ ] **T4.3** `POST /auth/sign-up`: create user + session in one transaction; 409 on duplicate email; returns `{ id: sessionId, user }`. Signup counts as first login (`loginsCount = 1`). *Done when:* integration test passes.
-- [ ] **T4.4** `POST /auth/sign-in`: verify credentials (constant-time path for unknown email), call `createForUser`; 401 on bad credentials, 403 on inactive. *Done when:* inactive sign-in test passes.
-- [ ] **T4.5** `SessionGuard` (global, `@Public()` opt-out): reads `X-Session-Id`, validates UUID, session exists, not terminated, not expired, user exists; attaches `req.auth`. *Done when:* every non-public route rejects missing/terminated/expired session with 401.
-- [ ] **T4.6** `GET /auth/me` returns session + safe user. *Done when:* integration test passes.
-- [ ] **T4.7** `DELETE /sessions/:id`: only the caller's own session; sets `terminatedAt` once; repeat returns 204. *Done when:* another user's session ID returns 404.
-- [ ] **T4.8** `POST /sessions`: requires email + password body (credential-verified), never a bare `userId`. *Done when:* request with only `userId` returns 400.
-- [ ] **T4.9** OpenAPI via `@nestjs/swagger` at `/docs` (dev only). *Done when:* all 9 endpoints documented with examples.
+- [x] **T4.2** `SessionsService.createForUser(userId)`: one transaction — lock user row (`SELECT … FOR UPDATE`), reject INACTIVE (403), insert session with `expiresAt`, increment `loginsCount`. *Done when:* concurrent-signin test shows count == sessions created.
+  - *Note:* accepts an optional `tx` so sign-up joins it. I10 holds an uncommitted deactivation while a sign-in starts; verified the test fails if `FOR UPDATE` is removed.
+- [x] **T4.3** `POST /auth/sign-up`: create user + session in one transaction; 409 on duplicate email; returns `{ id: sessionId, user }`. Signup counts as first login (`loginsCount = 1`). *Done when:* integration test passes.
+- [x] **T4.4** `POST /auth/sign-in`: verify credentials (constant-time path for unknown email), call `createForUser`; 401 on bad credentials, 403 on inactive. *Done when:* inactive sign-in test passes.
+  - *Note:* returns 200. Unknown email verifies against a memoized dummy argon2 hash; wrong password and unknown email return the identical `INVALID_CREDENTIALS` body. Inactive check runs only after the password verifies, so status is never revealed to a wrong password.
+- [x] **T4.5** `SessionGuard` (global, `@Public()` opt-out): reads `X-Session-Id`, validates UUID, session exists, not terminated, not expired, user exists; attaches `req.auth`. *Done when:* every non-public route rejects missing/terminated/expired session with 401.
+  - *Note:* registered via `APP_GUARD`; `@CurrentAuth()` param decorator; one generic 401 `UNAUTHORIZED` for every failure. Also closes the T3.5 "deleted user's session gets 401" check.
+- [x] **T4.6** `GET /auth/me` returns session + safe user. *Done when:* integration test passes.
+- [x] **T4.7** `DELETE /sessions/:id`: only the caller's own session; sets `terminatedAt` once; repeat returns 204. *Done when:* another user's session ID returns 404.
+  - *Note:* "own" = any session of the caller's user. Route is marked `@AllowEndedSession()`: the header session must exist, but may already be terminated/expired, so a repeated sign-out with the same session returns 204 (I11) while every other route rejects it.
+- [x] **T4.8** `POST /sessions`: requires email + password body (credential-verified), never a bare `userId`. *Done when:* request with only `userId` returns 400.
+- [x] **T4.9** OpenAPI via `@nestjs/swagger` at `/docs` (dev only). *Done when:* all 9 endpoints documented with examples.
+  - *Note:* enabled when `NODE_ENV !== 'production'` (JSON at `/docs-json`). Request/response schemas are generated from the shared Zod contracts (`z.toJSONSchema`, OpenAPI 3.0), so docs cannot drift from validation; `X-Session-Id` declared as an apiKey scheme. `/health` excluded from docs. Integration test asserts exactly the 9 operations.
 
 ### Phase 5 — Web shell & BFF
 

@@ -1,5 +1,7 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import type { ApiError } from '@um/shared';
+import { Public } from '../auth/auth.decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface HealthResponse {
@@ -7,6 +9,8 @@ export interface HealthResponse {
   database: 'up';
 }
 
+@Public()
+@ApiExcludeController()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER } from '@nestjs/core';
+import { AuthModule } from './auth/auth.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
       validate: validateEnv,
     }),
     PrismaModule,
+    AuthModule,
     UsersModule,
   ],
   controllers: [HealthController],

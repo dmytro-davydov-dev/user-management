@@ -2,7 +2,7 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phases 1–3 (bootstrap, persistence, users API) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+> **Status:** work in progress. Phases 1–4 (bootstrap, persistence, users API, auth & sessions) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
 ## Architecture
 
@@ -62,6 +62,10 @@ docs/             Implementation plans
 | DELETE | `/users/:id`            | Session     |
 
 Users endpoints: `GET /users` returns `{ data, pagination: { page, limit, total, totalPages } }`, newest first; `limit` is capped at 6. `PATCH /users/:id` accepts only `firstName`, `lastName` and `status`; the status change is applied first, so reactivating and renaming in one request works, while deactivating and renaming is rejected with `403 USER_INACTIVE`. `DELETE /users/:id` returns 204 and removes the user's sessions.
+
+Auth endpoints: sign-up, sign-in and `POST /sessions` return `{ id, user }`, where `id` is the session ID to send as `X-Session-Id` on every protected request (missing, unknown, terminated or expired → `401 UNAUTHORIZED`). Sign-up counts as the first login. Bad credentials return one generic `401 INVALID_CREDENTIALS` (unknown emails take the same argon2 path); inactive users get `403 USER_INACTIVE` and no session. `POST /sessions` takes `{ email, password }` only. `DELETE /sessions/:id` ends one of the caller's own sessions (another user's → 404) and is idempotent: repeating it with the same, already-ended session returns 204. Sessions last `SESSION_TTL_HOURS` (default 24 h, no sliding renewal).
+
+Interactive API docs (Swagger UI) are served at `http://localhost:4000/docs` outside production; schemas are generated from the shared Zod contracts.
 
 ## Tech stack
 

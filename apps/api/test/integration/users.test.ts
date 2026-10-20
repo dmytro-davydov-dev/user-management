@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import type { User } from '@um/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestApp, resetDatabase, seedUsers, type TestContext } from './helpers';
+import {
+  type AuthSession,
+  createAuthSession,
+  createTestApp,
+  resetDatabase,
+  seedUsers,
+  type TestContext,
+} from './helpers';
 
 const newUser = {
   firstName: '  Ada ',
@@ -13,7 +20,17 @@ const newUser = {
 
 describe('Users API', () => {
   let ctx: TestContext;
-  const http = () => request(ctx.app.getHttpServer());
+  /** Every /users route requires a session; the caller is itself a user (sorted last). */
+  let auth: AuthSession;
+  const http = () => {
+    const agent = request(ctx.app.getHttpServer());
+    return {
+      get: (url: string) => agent.get(url).set(auth.header),
+      post: (url: string) => agent.post(url).set(auth.header),
+      patch: (url: string) => agent.patch(url).set(auth.header),
+      delete: (url: string) => agent.delete(url).set(auth.header),
+    };
+  };
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -23,17 +40,19 @@ describe('Users API', () => {
   });
   beforeEach(async () => {
     await resetDatabase(ctx.prisma);
+    auth = await createAuthSession(ctx.prisma);
   });
 
   describe('GET /users (I5)', () => {
+    // Totals include the authenticated caller, so 0 users is unreachable here.
     it.each([
-      [0, 1, 0, 0, 0],
-      [6, 1, 6, 6, 1],
-      [7, 2, 1, 7, 2],
-      [13, 3, 1, 13, 3],
-      [13, 4, 0, 13, 3],
+      [0, 1, 1, 1, 1],
+      [5, 1, 6, 6, 1],
+      [6, 2, 1, 7, 2],
+      [12, 3, 1, 13, 3],
+      [12, 4, 0, 13, 3],
     ])(
-      '%i users, page %i → %i rows (total %i, %i pages)',
+      '%i seeded + caller, page %i → %i rows (total %i, %i pages)',
       async (count, page, rows, total, totalPages) => {
         await seedUsers(ctx.prisma, count);
         const res = await http().get('/users').query({ page }).expect(200);
@@ -43,12 +62,12 @@ describe('Users API', () => {
     );
 
     it('orders newest first with a stable order across pages', async () => {
-      const ids = await seedUsers(ctx.prisma, 13);
+      const ids = await seedUsers(ctx.prisma, 12);
       const pages = await Promise.all(
         [1, 2, 3].map((page) => http().get('/users').query({ page }).expect(200)),
       );
       const seen = pages.flatMap((res) => (res.body.data as User[]).map((u) => u.id));
-      expect(seen).toEqual([...ids].reverse());
+      expect(seen).toEqual([...ids].reverse().concat(auth.userId));
     });
 
     it('breaks createdAt ties by id', async () => {
@@ -65,7 +84,7 @@ describe('Users API', () => {
         });
       }
       const res = await http().get('/users').expect(200);
-      const ids = (res.body.data as User[]).map((u) => u.id);
+      const ids = (res.body.data as User[]).slice(0, 3).map((u) => u.id);
       expect(ids).toEqual([...ids].sort().reverse());
     });
 
@@ -218,8 +237,14 @@ describe('Users API', () => {
         data: { userId: id!, expiresAt: new Date(Date.now() + 3_600_000) },
       });
       await http().delete(`/users/${id}`).expect(204);
-      expect(await ctx.prisma.user.count()).toBe(0);
+      expect(await ctx.prisma.user.count()).toBe(1);
       expect(await ctx.prisma.session.findUnique({ where: { id: session.id } })).toBeNull();
+    });
+
+    it('deleting yourself revokes your session: the next request is 401 (I8)', async () => {
+      await http().delete(`/users/${auth.userId}`).expect(204);
+      const res = await http().get('/users').expect(401);
+      expect(res.body.code).toBe('UNAUTHORIZED');
     });
 
     it('returns 404 when the user does not exist', async () => {
