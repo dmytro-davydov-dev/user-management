@@ -31,7 +31,16 @@ Build a pnpm monorepo with a Next.js 15 web app, a NestJS API and PostgreSQL, de
 
 Ship the vertical slice (sign-up → dashboard → logout → sign-in) at gate G1 before any CRUD polish; API and web shell work can overlap until then.
 
-&#91;embedded content: phase dependencies · 10 phases, 2 gates\]
+```mermaid
+flowchart LR
+  P1[1 Bootstrap] --> P2[2 Persistence] --> P3[3 Users API] --> P4[4 Auth & sessions]
+  P1 --> P5[5 Web shell & BFF]
+  P4 --> P6[6 Auth flows UI]
+  P5 --> P6
+  P6 --> G1{{G1 vertical slice}}
+  G1 --> P7[7 Users dashboard] --> P8[8 Theme & polish] --> G2{{G2 feature complete}}
+  G2 --> P9[9 E2E & CI] --> P10[10 Images & docs] --> R{{Release}}
+```
 
 Gate criteria:
 
@@ -47,12 +56,13 @@ Each task lists what to build and the check that closes it. IDs (T1.1…) are re
 
 Commit: `chore: bootstrap TypeScript monorepo`
 
-- [ ] **T1.1** Init repo, `.gitignore`, `.nvmrc` (22), `packageManager` pin, `pnpm-workspace.yaml` with `apps/*`, `packages/*`. *Done when:* `pnpm install` succeeds from clean clone.
-- [ ] **T1.2** Root `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, ES2022), per-package `tsconfig` extending it. *Done when:* `pnpm -r typecheck` passes on empty packages.
-- [ ] **T1.3** ESLint (flat config, typescript-eslint) + Prettier; root scripts `lint`, `format`, `typecheck`, `test`. *Done when:* `pnpm lint` passes.
-- [ ] **T1.4** `packages/shared`: Zod schemas + inferred types for `User`, `UserStatus`, `Session`, `SignUpInput`, `SignInInput`, `CreateUserInput`, `UpdateUserInput`, `PaginatedResponse<T>`, `ApiError`. *Done when:* both apps import it via `workspace:*`.
-- [ ] **T1.5** `.env.example` with `POSTGRES_PASSWORD`, `DATABASE_URL`, `API_INTERNAL_URL`, `SESSION_TTL_HOURS`, `COOKIE_SECURE`. *Done when:* every variable read in code is listed.
-- [ ] **T1.6** Husky + lint-staged pre-commit (lint, format). *Done when:* a bad commit is blocked.
+- [x] **T1.1** Init repo, `.gitignore`, `.nvmrc` (22), `packageManager` pin, `pnpm-workspace.yaml` with `apps/*`, `packages/*`. *Done when:* `pnpm install` succeeds from clean clone.
+- [x] **T1.2** Root `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, ES2022), per-package `tsconfig` extending it. *Done when:* `pnpm -r typecheck` passes on empty packages.
+  - *Note:* TypeScript pinned to `~5.9` (typescript-eslint does not support TS 7 yet; meets >=5).
+- [x] **T1.3** ESLint (flat config, typescript-eslint) + Prettier; root scripts `lint`, `format`, `typecheck`, `test`. *Done when:* `pnpm lint` passes.
+- [x] **T1.4** `packages/shared`: Zod schemas + inferred types for `User`, `UserStatus`, `Session`, `SignUpInput`, `SignInInput`, `CreateUserInput`, `UpdateUserInput`, `PaginatedResponse<T>`, `ApiError`. *Done when:* both apps import it via `workspace:*`.
+- [x] **T1.5** `.env.example` with `POSTGRES_PASSWORD`, `DATABASE_URL`, `API_INTERNAL_URL`, `SESSION_TTL_HOURS`, `COOKIE_SECURE`. *Done when:* every variable read in code is listed.
+- [x] **T1.6** Husky + lint-staged pre-commit (lint, format). *Done when:* a bad commit is blocked.
 
 ### Phase 2 — Persistence
 
@@ -153,6 +163,7 @@ Commit: `docs: document Docker Compose setup and tradeoffs`
 - [ ] **T10.4** `.dockerignore` files; only `web:3000` published; healthchecks on all services. *Done when:* `docker compose ps` all healthy.
 - [ ] **T10.5** Optional `seed` service behind a `seed` profile. *Done when:* documented command works.
 - [ ] **T10.6** README: architecture diagram, prerequisites, env vars, setup, commands, tests, API summary, design decisions, tradeoffs, known limitations, future work. *Done when:* a fresh reader starts the stack from it alone.
+  - *Note:* initial README added (overview, architecture, layout, API summary, dev setup); Compose, tests, tradeoffs and limitations still to document.
 - [ ] **T10.7** Cold-start verification on a clean machine/clone: `cp .env.example .env && docker compose up --build`. *Done when:* full E2E passes against it.
 - [ ] **T10.8** Final branding sweep: `git grep -i` for the company name across tree and history. *Done when:* zero hits.
 
