@@ -4,7 +4,21 @@ Full-stack back-office app for managing users and their sessions: sign-up / sign
 
 > **Status:** work in progress. Phases 1–5 (bootstrap, persistence, users API, auth & sessions, web shell & BFF) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
-## Architecture
+## Documentation
+
+| Doc                                                                         | Covers                                                                                              |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [Architecture](docs/architecture.md)                                        | Components, request lifecycle, shared contracts, repository layout, tech stack                      |
+| [Data model](docs/data-model.md)                                            | Tables, indexes, invariants and how they're enforced, migrations, seed data                         |
+| [REST API reference](docs/api.md)                                           | All endpoints with examples, validation rules, the error format and codes                           |
+| [Authentication & sessions](docs/auth-and-sessions.md)                      | Passwords, sign-up/sign-in, session lifecycle, the session guard, race conditions                   |
+| [Web app & BFF](docs/web-app.md)                                            | Next.js routes, BFF handlers, session cookie, route protection, client data layer, theming          |
+| [Testing](docs/testing.md)                                                  | Test layers, how to run them, the integration test database, notable tests                          |
+| [Development guide](docs/development.md)                                    | Setup, environment variables, commands, working on the code, troubleshooting                        |
+| [Design decisions](docs/decisions.md)                                       | Key choices and alternatives, open-decision defaults, version pins, known limitations               |
+| [Implementation plan](docs/user-management-detailed-implementation-plan.md) | Phases, tasks, test matrix, progress ([original plan](docs/user-management-implementation-plan.md)) |
+
+## Architecture at a glance
 
 ```text
 Browser
@@ -19,23 +33,10 @@ NestJS api :4000 (REST, session guard, validation)
 PostgreSQL :5432
 ```
 
-- **web** — Next.js 15, MUI, React Hook Form + Zod, TanStack Query. Its BFF keeps the session ID in an HttpOnly cookie and forwards it to the API on every request, so the browser never sees the API host or the session ID.
-- **api** — NestJS 11 REST API: users CRUD, auth (sign-up / sign-in), session create / terminate, global session guard, consistent `{ code, message, details? }` errors.
-- **db** — PostgreSQL 16 via Prisma migrations.
-- **shared** — Zod schemas and inferred TypeScript types used by both apps.
-
-Only `web` is published to the host; `api` and `db` stay on the Compose network.
-
-## Repository layout
-
-```text
-apps/
-  api/            NestJS REST API
-  web/            Next.js app + BFF
-packages/
-  shared/         Zod contracts and types (@um/shared)
-docs/             Implementation plans
-```
+- **web**: Next.js 15, MUI, TanStack Query. Its BFF keeps the session ID in an HttpOnly cookie and adds it to every API call server-side, so the browser never sees the API host or the session ID. → [web-app.md](docs/web-app.md)
+- **api**: NestJS 11 REST API: users CRUD, sign-up / sign-in, session create / terminate, a global session guard and one `{ code, message, details? }` error format. → [api.md](docs/api.md), [auth-and-sessions.md](docs/auth-and-sessions.md)
+- **db**: PostgreSQL 16 via Prisma migrations. → [data-model.md](docs/data-model.md)
+- **shared**: Zod schemas and types used by both apps for validation, OpenAPI and client types. → [architecture.md](docs/architecture.md#shared-contracts-packagesshared)
 
 ## Domain rules
 
@@ -45,7 +46,7 @@ docs/             Implementation plans
 - Successful sign-up or sign-in creates a session and increments `loginsCount` in one transaction.
 - Passwords are hashed with Argon2id and never returned.
 - The dashboard shows six users per page.
-- Any signed-in user acts as admin (challenge simplification; production would need RBAC).
+- Any signed-in user acts as admin (exercise simplification; production would need RBAC).
 
 ## API overview
 
@@ -61,17 +62,9 @@ docs/             Implementation plans
 | PATCH  | `/users/:id`            | Session     |
 | DELETE | `/users/:id`            | Session     |
 
-Users endpoints: `GET /users` returns `{ data, pagination: { page, limit, total, totalPages } }`, newest first; `limit` is capped at 6. `PATCH /users/:id` accepts only `firstName`, `lastName` and `status`; the status change is applied first, so reactivating and renaming in one request works, while deactivating and renaming is rejected with `403 USER_INACTIVE`. `DELETE /users/:id` returns 204 and removes the user's sessions.
+Full reference with examples: [docs/api.md](docs/api.md). Swagger UI runs at `http://localhost:4000/docs` outside production.
 
-Auth endpoints: sign-up, sign-in and `POST /sessions` return `{ id, user }`, where `id` is the session ID to send as `X-Session-Id` on every protected request (missing, unknown, terminated or expired → `401 UNAUTHORIZED`). Sign-up counts as the first login. Bad credentials return one generic `401 INVALID_CREDENTIALS` (unknown emails take the same argon2 path); inactive users get `403 USER_INACTIVE` and no session. `POST /sessions` takes `{ email, password }` only. `DELETE /sessions/:id` ends one of the caller's own sessions (another user's → 404) and is idempotent: repeating it with the same, already-ended session returns 204. Sessions last `SESSION_TTL_HOURS` (default 24 h, no sliding renewal).
-
-Interactive API docs (Swagger UI) are served at `http://localhost:4000/docs` outside production; schemas are generated from the shared Zod contracts.
-
-## Tech stack
-
-Node 22 · TypeScript 5.9 (strict) · pnpm workspaces · Next.js 15 · NestJS 11 · Prisma · PostgreSQL 16 · Vitest · Supertest · React Testing Library · Playwright · Docker Compose
-
-## Getting started
+## Quick start
 
 Prerequisites: Node 22 (`.nvmrc`), pnpm 10 (via Corepack), Docker.
 
@@ -80,67 +73,35 @@ corepack enable
 pnpm install
 cp .env.example .env
 
-pnpm typecheck
-pnpm lint
-pnpm test
-```
-
-Run the stack on the host (database in Docker, apps with hot reload):
-
-```bash
-docker compose up -d db
+docker compose up -d db               # PostgreSQL
 pnpm --filter @um/api db:migrate      # apply migrations
-pnpm --filter @um/api dev             # API on http://localhost:4000 (Swagger at /docs)
+pnpm --filter @um/api db:seed         # optional sample data
+pnpm --filter @um/api dev             # API on http://localhost:4000
 pnpm --filter @um/web dev             # web on http://localhost:3000
 ```
 
-Both apps read the repo-root `.env`.
-
-Web tests (BFF route handlers, middleware, API client):
+Checks:
 
 ```bash
-pnpm --filter @um/web test
+pnpm typecheck && pnpm lint && pnpm test
+pnpm --filter @um/api test:int        # API integration tests (real PostgreSQL)
 ```
 
-API tests:
+Full stack in Docker Compose (once the services land in Phase 10):
 
 ```bash
-pnpm --filter @um/api test       # unit tests
-pnpm --filter @um/api test:int   # integration tests against real PostgreSQL
+docker compose up --build -d          # app at http://localhost:3000
+docker compose down                   # add -v to wipe the database
 ```
 
-Integration tests never touch the dev database: they use `TEST_DATABASE_URL`, or `DATABASE_URL` with `_test` appended to the database name, which the test setup creates and migrates automatically. Start the database first (`docker compose up -d db`).
+Environment variables, every command and troubleshooting tips: [docs/development.md](docs/development.md). Test layers and the test database: [docs/testing.md](docs/testing.md).
 
-Docker Compose (once the services land):
+## Tech stack
 
-```bash
-docker compose up --build -d   # app at http://localhost:3000
-docker compose down            # add -v to wipe the database
-```
-
-## Web app and BFF
-
-The browser only ever talks to the Next.js app. Its route handlers act as a backend-for-frontend:
-
-| BFF route                     | Does                                                                                  |
-| ----------------------------- | ------------------------------------------------------------------------------------- |
-| `POST /api/auth/sign-up`      | Calls the API, stores the returned session ID in the `sid` cookie, returns `{ user }` |
-| `POST /api/auth/sign-in`      | Same as sign-up                                                                       |
-| `POST /api/auth/sign-out`     | `DELETE /sessions/:id` on the API, then clears the cookie (even if the API is down)   |
-| `GET /api/auth/me`            | Current `{ user }`; the session object is stripped                                    |
-| `/api/users[/:id]`            | Proxied as-is with `X-Session-Id` taken from the cookie                               |
-| `GET /api/auth/clear-session` | Drops a stale cookie and redirects to `/sign-in` or `/sign-up`                        |
-
-- The `sid` cookie is `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` = `SESSION_TTL_HOURS`, and `Secure` when `COOKIE_SECURE=true`. Browser JavaScript can never read the session ID, and the API host is never exposed.
-- Only `users` routes are proxied generically; anything that returns a session ID has a dedicated handler. State-changing requests from another origin (`Origin` / `Sec-Fetch-Site`) are rejected with 403 on top of `SameSite=Lax`.
-- When the API answers 401, the BFF clears the cookie, and the client redirects to `/sign-in`. A wrong password on sign-in (`INVALID_CREDENTIALS`) does not redirect.
-- `middleware.ts` routes optimistically on cookie presence (`/dashboard` without a cookie → `/sign-in`; auth pages with a cookie → `/dashboard`). The protected layout and `/` always confirm the session with `GET /auth/me` before rendering.
-
-## Environment variables
-
-See [`.env.example`](.env.example): `POSTGRES_PASSWORD`, `DATABASE_URL`, `API_PORT`, `SESSION_TTL_HOURS` (API session TTL and web cookie lifetime), `API_INTERNAL_URL` (server-side only), `COOKIE_SECURE`.
+Node 22 · TypeScript 5.9 (strict) · pnpm workspaces · Next.js 15 · NestJS 11 · Prisma 7 · PostgreSQL 16 · MUI 6 · TanStack Query · Zod 4 · Vitest · Supertest · React Testing Library · Playwright · Docker Compose
 
 ## Conventions
 
 - Conventional Commits; lint and format run on pre-commit (Husky + lint-staged).
 - Errors use `{ code, message, details? }`; dates are ISO 8601 UTC.
+- Design tradeoffs and known limitations are tracked in [docs/decisions.md](docs/decisions.md).

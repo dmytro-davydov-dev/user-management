@@ -193,7 +193,7 @@ Commit: `docs: document Docker Compose setup and tradeoffs`
 - [ ] **T10.4** `.dockerignore` files; only `web:3000` published; healthchecks on all services. *Done when:* `docker compose ps` all healthy.
 - [ ] **T10.5** Optional `seed` service behind a `seed` profile. *Done when:* documented command works.
 - [ ] **T10.6** README: architecture diagram, prerequisites, env vars, setup, commands, tests, API summary, design decisions, tradeoffs, known limitations, future work. *Done when:* a fresh reader starts the stack from it alone.
-  - *Note:* initial README added (overview, architecture, layout, API summary, dev setup); Compose, tests, tradeoffs and limitations still to document.
+  - *Note:* README is now an entry point linking topic docs in `docs/`: architecture, data model, API reference, auth & sessions, web app & BFF, testing, development guide, design decisions (tradeoffs, open-decision defaults, known limitations). Still to document: the full Compose stack (Phase 10) and E2E (Phase 9). Keep the topic docs current as each phase lands.
 - [ ] **T10.7** Cold-start verification on a clean machine/clone: `cp .env.example .env && docker compose up --build`. *Done when:* full E2E passes against it.
 - [ ] **T10.8** Final branding sweep: `git grep -i` for the company name across tree and history. *Done when:* zero hits.
 
