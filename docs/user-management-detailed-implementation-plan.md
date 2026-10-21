@@ -145,10 +145,16 @@ Commit: `feat(web): add app shell and session integration`
 
 Commit: `feat(web): add authentication flows`
 
-- [ ] **T6.1** `/sign-up` form: first name, last name, email, password, confirm password; Zod `refine` on password match; submit disabled while pending. *Done when:* RTL test proves mismatch makes no network call.
-- [ ] **T6.2** `/sign-in` form: email, password; server errors mapped to field/form messages (401 generic "invalid credentials", 403 "account inactive"). *Done when:* both error states render.
-- [ ] **T6.3** On success: invalidate `['me']` query, `router.replace('/dashboard')`. *Done when:* back button does not return to the form.
-- [ ] **T6.4** Cross-links sign-up ⇄ sign-in; accessible labels, autocomplete attributes, keyboard submit. *Done when:* axe check shows no violations.
+*Status:* done — 13 new component tests (49 web tests total) green; build, lint, typecheck and format clean. Also driven in headless Chromium against the production build and a stub API: mismatch blocks the request, sign-up → dashboard, Back skips the form, 401/403 messages, 409 on the email field, mobile width. Full-stack coverage comes with E2 (Phase 9).
+
+- [x] **T6.1** `/sign-up` form: first name, last name, email, password, confirm password; Zod `refine` on password match; submit disabled while pending. *Done when:* RTL test proves mismatch makes no network call.
+  - *Note:* React Hook Form + `@hookform/resolvers` (`zodResolver`) with the shared `SignUpFormSchema`; parsed output (trimmed, lower-cased email) is sent without `confirmPassword`. 409 `EMAIL_TAKEN` and 400 `details[{ path }]` map onto fields. The button stays disabled from submit until navigation, and Enter-key resubmits are ignored while busy.
+- [x] **T6.2** `/sign-in` form: email, password; server errors mapped to field/form messages (401 generic "invalid credentials", 403 "account inactive"). *Done when:* both error states render.
+  - *Note:* form-level `Alert` for 401/403/network errors (the 401 copy never says which field was wrong); the password is cleared and focused for the retry. Mapping is shared in `components/auth/form-errors.ts`.
+- [x] **T6.3** On success: invalidate `['me']` query, `router.replace('/dashboard')`. *Done when:* back button does not return to the form.
+  - *Note:* `useAuthSuccess()`. Component tests assert `replace` (never `push`) and the `['me']` invalidation; the browser check confirmed Back lands on the page before the form. Middleware also bounces an authenticated user off the auth pages.
+- [x] **T6.4** Cross-links sign-up ⇄ sign-in; accessible labels, autocomplete attributes, keyboard submit. *Done when:* axe check shows no violations.
+  - *Note:* axe-core (dev dependency) runs on both pages inside the auth layout: zero violations (`color-contrast` disabled in jsdom; covered by Playwright later). `autocomplete`: `given-name`, `family-name`, `email`, `new-password` / `username`, `current-password`. Enter submits (tested).
 
 ### Phase 7 — Users dashboard
 

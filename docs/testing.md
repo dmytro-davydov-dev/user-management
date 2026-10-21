@@ -9,7 +9,7 @@ Each business rule is tested at the cheapest layer that can prove it. Integratio
 | Shared contracts | Vitest | `packages/shared/src/*.test.ts` | Trimming, email normalization, strict update schema, password confirmation, page-size cap |
 | API unit | Vitest + SWC | `apps/api/src/**/*.test.ts`, `apps/api/test/unit/` | Exception mapping, validation pipe, password hashing, public-user mapper, `SessionGuard`, session expiry, env parsing, `/health` |
 | API integration | Vitest + Supertest | `apps/api/test/integration/` | Every endpoint against a real database: pagination boundaries, timestamps, inactive rules, cascade, concurrency (I9, I10), guard coverage, OpenAPI completeness |
-| Web unit / component | Vitest (node + jsdom), React Testing Library | `apps/web/src/**/*.test.{ts,tsx}` | BFF proxy and auth handlers (cookie flags, header injection, allowlist, CSRF checks, 401/503 handling), middleware redirects, API client and the central 401 redirect |
+| Web unit / component | Vitest (node + jsdom), React Testing Library | `apps/web/src/**/*.test.{ts,tsx}` | BFF proxy and auth handlers (cookie flags, header injection, allowlist, CSRF checks, 401/503 handling), middleware redirects, API client and the central 401 redirect, sign-up/sign-in forms (validation, server-error mapping, pending state, redirect), axe-core accessibility check of the auth pages |
 | End to end | Playwright | Phase 9 | User journeys against the Compose stack |
 
 ## Running
@@ -42,6 +42,8 @@ Start the database first: `docker compose up -d db`.
 - **I13, guard coverage:** every protected route returns 401 without a session header.
 - **I14 and the mapper test:** no response body anywhere contains `password` or an Argon2 hash.
 - **OpenAPI completeness:** the generated document contains exactly the 9 public endpoints.
+- **C1, password mismatch:** the sign-up form shows "Passwords do not match" and `fetch` is never called.
+- **Auth pages, axe:** both pages are rendered inside the auth layout and checked with axe-core (zero violations). `color-contrast` is disabled there because jsdom has no layout; contrast is left to the Playwright run.
 - **BFF cookie flags:** `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` from the TTL, and `Secure` only when `COOKIE_SECURE=true`. The session ID never appears in a BFF response body.
 
 ## Conventions
@@ -50,3 +52,4 @@ Start the database first: `docker compose up -d db`.
 - Web tests run in Node by default; component tests opt into the DOM with `// @vitest-environment jsdom`.
 - `server-only` is aliased to an empty module in the web Vitest config so server modules can be imported in tests.
 - The web BFF tests stub `fetch` (the BFF → API hop) with helpers from `src/test/bff.ts`.
+- Component tests render through `renderWithProviders()` (`src/test/render.tsx`: theme + a fresh query client), stub `fetch` for the browser → BFF hop and mock `next/navigation`'s `useRouter`.

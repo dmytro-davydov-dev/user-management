@@ -2,14 +2,14 @@
 
 Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend-for-frontend (BFF)**: the browser talks only to the web app, which holds the session in an HttpOnly cookie and calls the API server-side. API endpoints are in [api.md](api.md); the session model is in [auth-and-sessions.md](auth-and-sessions.md).
 
-> Status: shell, BFF, route protection and theming are done (Phase 5). The sign-up/sign-in forms land in Phase 6 and the users table and dialogs in Phase 7.
+> Status: shell, BFF, route protection and theming are done (Phase 5); sign-up/sign-in forms are done (Phase 6). The users table and dialogs land in Phase 7.
 
 ## Routes
 
 | Route | Kind | Behaviour |
 | --- | --- | --- |
 | `/` | Server component | Confirms the session with the API → `/dashboard` if valid, else `/sign-up` |
-| `/sign-up`, `/sign-in` | `(auth)` group | Centered card layout. Redirected to `/dashboard` by middleware when a session cookie exists |
+| `/sign-up`, `/sign-in` | `(auth)` group | Centered card with the sign-up / sign-in form ([Auth forms](#auth-forms)). Redirected to `/dashboard` by middleware when a session cookie exists |
 | `/dashboard` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (user name, theme toggle, sign out) |
 | `/api/*` | Route handlers | The BFF (below) |
 
@@ -74,6 +74,26 @@ sequenceDiagram
   B->>M: GET /sign-in (no cookie) → page renders
 ```
 
+## Auth forms
+
+Client components in [`components/auth/`](../apps/web/src/components/auth/), built with React Hook Form + `zodResolver` and the shared schemas, so client and API validate with the same rules.
+
+| | Sign-up (`SignUpForm`) | Sign-in (`SignInForm`) |
+| --- | --- | --- |
+| Schema | `SignUpFormSchema` (adds `confirmPassword` + `refine` on match) | `SignInInputSchema` |
+| Fields → `autocomplete` | first/last name → `given-name`/`family-name`; email → `email`; both passwords → `new-password` | email → `username`; password → `current-password` |
+| Sent to the BFF | Parsed output (trimmed names, lower-cased email) **without** `confirmPassword` | Parsed output (lower-cased email) |
+| Field-level server errors | `409 EMAIL_TAKEN` → email field; `400` `details[{ path }]` → matching fields | `400` `details[{ path }]` → matching fields |
+| Form-level messages (`Alert`) | anything else, e.g. 503 "service unavailable" | `401 INVALID_CREDENTIALS` → "Invalid email or password." (never says which field); `403 USER_INACTIVE` → "This account is inactive…"; network/5xx → "unavailable". The password is cleared and focused for the retry; the email is kept |
+
+Behaviour shared by both:
+
+- **Validation before the network.** Errors show on blur (`mode: 'onTouched'`) and on submit; the first invalid field is focused. A password mismatch never sends a request (C1).
+- **No double submit.** The submit button is disabled (and relabelled "Creating account…" / "Signing in…") from submit until navigation; the submit handler also ignores Enter-key resubmits while busy.
+- **On success** (`useAuthSuccess`): invalidate `['me']`, then `router.replace('/dashboard')`. `replace` swaps out the form's history entry, so Back from the dashboard goes to the page *before* the form. Middleware would bounce an authenticated user off the auth pages anyway.
+- **Accessibility.** Native `<form noValidate>` with an accessible name, labelled MUI `TextField`s with `aria-invalid` and helper-text errors, a real submit button (Enter submits), error `Alert`s with `role="alert"`, cross-links between the two pages. An axe-core check runs in the component tests.
+- Server-error mapping lives in one helper, `applyServerError()` (`form-errors.ts`), with the copy in `AUTH_ERROR_MESSAGES`.
+
 ## Client data layer
 
 - **`apiClient`** ([`lib/client/api-client.ts`](../apps/web/src/lib/client/api-client.ts)) is a typed wrapper over `fetch('/api/…')` with `auth.*` and `users.*` methods. Non-2xx responses throw `ApiClientError { status, code, message, details }`, parsed from the shared error shape. Network failures become `status 0, SERVICE_UNAVAILABLE`.
@@ -111,7 +131,9 @@ src/
     api/[...path]/route.ts      generic users proxy
     api/auth/*/route.ts         sign-up, sign-in, sign-out, me, clear-session
     error.tsx, icon.svg
-  components/layout/app-shell.tsx
+  components/
+    layout/app-shell.tsx
+    auth/                       sign-up / sign-in forms, FormTextField, server-error mapping, useAuthSuccess
   lib/
     session-cookie.ts           cookie name (Edge-safe, used by middleware)
     bff-types.ts                BFF response types
