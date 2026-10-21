@@ -2,7 +2,7 @@
 
 Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend-for-frontend (BFF)**: the browser talks only to the web app, which holds the session in an HttpOnly cookie and calls the API server-side. API endpoints are in [api.md](api.md); the session model is in [auth-and-sessions.md](auth-and-sessions.md).
 
-> Status: shell, BFF, route protection and theming (Phase 5), sign-up/sign-in forms (Phase 6), the users dashboard (Phase 7) and theme persistence (Phase 8) are done. The mobile card layout is still to come in Phase 8.
+> Status: shell, BFF, route protection and theming (Phase 5), sign-up/sign-in forms (Phase 6), the users dashboard (Phase 7), theme persistence and the mobile card layout (Phase 8) are done.
 
 ## Routes
 
@@ -12,6 +12,7 @@ Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend
 | `/sign-up`, `/sign-in` | `(auth)` group | Centered card with the sign-up / sign-in form ([Auth forms](#auth-forms)). Redirected to `/dashboard` by middleware when a session cookie exists |
 | `/dashboard[?page=N]` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (user name, theme toggle, sign out). The users table and dialogs ([Users dashboard](#users-dashboard)) |
 | `/api/*` | Route handlers | The BFF (below) |
+| anything else | `not-found.tsx` | 404 page with a link to `/` |
 
 Route groups in parentheses don't appear in URLs; they only share layouts.
 
@@ -100,7 +101,8 @@ Behaviour shared by both:
 
 - **Page in the URL.** `usePageParam()` reads `?page=` (missing or invalid → 1; page 1 is the bare `/dashboard`) and writes it with `history.pushState`, which Next.js syncs into `useSearchParams` without a server round trip. Back/Forward move between pages; links to a page are shareable. A page past the end (stale link, rows deleted elsewhere) replaces itself with the last page.
 - **Data.** `useQuery(['users', page])` with `keepPreviousData`, so switching pages keeps the old rows (plus a thin progress bar) instead of flashing a skeleton. Columns: name (your own row is tagged "You"), email, status chip, logins, created, updated. Dates use the viewer's locale inside `<time dateTime>`; they render only in the browser, so there is no hydration mismatch.
-- **States.** First load: 6 skeleton rows (`aria-busy`). No users: empty state with a create action. Error: `Alert` with Retry. On narrow screens the table scrolls inside its card (cards under 600 px come in Phase 8).
+- **States.** First load: 6 skeleton rows (`aria-busy`). No users: empty state with a create action. Error: `Alert` with Retry.
+- **Narrow screens (< 600 px).** The table becomes a list of cards (`UserCardList`, a `<ul aria-label="Users">`): name, "You" and status chips, email, then logins / created / updated, with the same Edit / Delete buttons and labels as the table. Both layouts are rendered and CSS breakpoints show one, so the server-rendered page already matches the viewport (no swap after hydration). The rule is desktop-first, so jsdom (no media queries) sees only the table. Long names and emails wrap inside the card. Pagination shows fewer siblings and smaller buttons; it renders only after the client-side fetch, so `useMediaQuery` is safe there.
 - **Mutations are not optimistic.** The table changes only after the API confirms: success closes the dialog, shows a snackbar and invalidates `['users']`. A failure keeps the dialog open with the error and leaves the table untouched.
 
 | Dialog | Behaviour |
@@ -130,7 +132,9 @@ Behaviour shared by both:
 - **Persistence:** the chosen mode is saved in `localStorage` under `theme` (`light` / `dark`), so it survives closing and reopening the browser. With nothing saved, the app follows the OS (`prefers-color-scheme`) and keeps following it live. MUI also syncs the choice across open tabs.
 - **No flash:** the server renders the same HTML for both modes. `ThemeInitScript` (MUI's `InitColorSchemeScript`), the first script in `<body>`, reads the saved mode or the OS preference and sets `class="light|dark"` on `<html>` before any content is parsed; CSS variables do the rest. The toggle's sun/moon icon is also picked by CSS (`theme.applyStyles('dark', …)`), not by state, so nothing changes at hydration. `<html>` has `suppressHydrationWarning` because the script changes its class.
 - **Switching:** `useThemeMode()` returns the resolved `mode` (`undefined` until mounted) and `toggleMode()`; a toggle stores an explicit `light`/`dark`, replacing "follow the OS". Storage keys and the `<html>` class strategy live in one `THEME_CONFIG`, shared by the provider and the script.
-- **Errors:** `app/error.tsx` shows a retry screen, for example when the API is down during server rendering.
+- **Errors:** `app/error.tsx` shows a retry screen, for example when the API is down during server rendering. `app/not-found.tsx` handles unknown URLs.
+- **Page titles:** `"<page> · User Management"` from the root layout's title template: Sign in, Create account, Users, Page not found. `error.tsx` is a client component and can't export `metadata`, so it renders a `<title>` element, which React 19 moves into `<head>`.
+- **Dialog focus:** each dialog focuses its first useful control on open (New user → first name; Edit → status; Delete → **Cancel**, so Enter never deletes) and traps focus while open. On close, MUI returns focus to the button that opened it. If that button's row is gone after the refetch (deleted, or the user no longer exists), the dashboard moves focus to the "Users" heading (`tabIndex={-1}`) instead of leaving it on `<body>`.
 
 ## Configuration
 
@@ -155,7 +159,7 @@ src/
     (protected)/                layout with requireUser(); dashboard
     api/[...path]/route.ts      generic users proxy
     api/auth/*/route.ts         sign-up, sign-in, sign-out, me, clear-session
-    error.tsx, icon.svg
+    error.tsx, not-found.tsx, icon.svg
   components/
     layout/app-shell.tsx
     auth/                       sign-up / sign-in forms, FormTextField, server-error mapping, useAuthSuccess

@@ -10,10 +10,12 @@ import Paper from '@mui/material/Paper';
 import Snackbar from '@mui/material/Snackbar';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import type { Theme } from '@mui/material/styles';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { User } from '@um/shared';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/lib/client/api-client';
 import { queryKeys } from '@/lib/client/query';
 import { usePageParam } from '@/lib/client/use-page-param';
@@ -43,7 +45,12 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const [page, setPage] = usePageParam();
   const [dialog, setDialog] = useState<DialogState>({ kind: 'none' });
+  // Pagination only renders after the client-side fetch, so reading the viewport is safe.
+  const compact = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'), { noSsr: true });
   const [toast, setToast] = useState<Toast | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a row is about to disappear (deleted, or found gone while editing).
+  const refocusAfterRemoval = useRef(false);
 
   const query = useQuery({
     queryKey: queryKeys.usersPage(page),
@@ -59,6 +66,15 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
     !!pagination &&
     pagination.totalPages > 0 &&
     page > pagination.totalPages;
+
+  // The closed dialog returns focus to the row's button; once the refetch removes that row,
+  // focus would fall to <body>, so keyboard and screen-reader users land on the heading.
+  useEffect(() => {
+    if (!refocusAfterRemoval.current || query.isPlaceholderData) return;
+    refocusAfterRemoval.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body || !active.isConnected) headingRef.current?.focus();
+  }, [data, query.isPlaceholderData]);
 
   // A page past the end (stale link, or rows deleted elsewhere) moves to the last page.
   useEffect(() => {
@@ -88,6 +104,7 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
   };
 
   const onGone = () => {
+    refocusAfterRemoval.current = true;
     close();
     setToast({ severity: 'error', message: 'That user no longer exists.' });
     void refreshUsers();
@@ -102,6 +119,7 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
       router.replace('/sign-in');
       return;
     }
+    refocusAfterRemoval.current = true;
     setToast({ severity: 'success', message: `Deleted ${fullName(user)}` });
     // Deleting the last row of a page moves to the previous page.
     if (data && data.data.length === 1 && page > 1) setPage(page - 1, { replace: true });
@@ -116,7 +134,9 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
         sx={{ justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'flex-end' } }}
       >
         <Box>
-          <Typography variant="h1">Users</Typography>
+          <Typography variant="h1" ref={headingRef} tabIndex={-1} sx={{ outline: 'none' }}>
+            Users
+          </Typography>
           <Typography color="text.secondary" aria-live="polite">
             {pagination ? summary(page, pagination.limit, pagination.total) : ' '}
           </Typography>
@@ -177,6 +197,8 @@ export function UsersDashboard({ currentUserId }: { currentUserId: string }) {
           page={Math.min(page, pagination.totalPages)}
           onChange={(_, next) => setPage(next)}
           color="primary"
+          siblingCount={compact ? 0 : 1}
+          size={compact ? 'small' : 'medium'}
           sx={{ alignSelf: 'center' }}
           getItemAriaLabel={(type, p, selected) =>
             type === 'page' ? `${selected ? '' : 'Go to '}page ${p}` : `Go to ${type} page`

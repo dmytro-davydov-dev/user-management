@@ -11,6 +11,8 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
       role="alert"
       sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', textAlign: 'center', p: 3 }}
     >
+      {/* Error boundaries are client components and can't export `metadata`; React 19 hoists this. */}
+      <title>Something went wrong · User Management</title>
       <Box>
         <Typography variant="h1" gutterBottom>
           Something went wrong

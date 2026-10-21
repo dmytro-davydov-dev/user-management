@@ -183,7 +183,8 @@ describe('UsersDashboard: create (T7.4)', () => {
     await user.click(screen.getByRole('button', { name: 'New user' }));
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Create user' }));
-    expect(await within(dialog).findAllByText('Required')).toHaveLength(2);
+    // First name, last name and email (the password shows its length rule).
+    expect(await within(dialog).findAllByText('Required')).toHaveLength(3);
     expect(api.calls('POST')).toHaveLength(0);
 
     await user.type(within(dialog).getByLabelText(/^First name/), 'A');
@@ -326,5 +327,67 @@ describe('UsersDashboard: delete (T7.6, T7.7)', () => {
 
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/sign-in'));
     expect(api.calls('POST', '/api/auth/sign-out')).toHaveLength(1);
+  });
+});
+
+describe('UsersDashboard: dialog focus (T8.4)', () => {
+  it('focuses the first useful control when each dialog opens', async () => {
+    installUsersApi(makeUsers(2));
+    const user = userEvent.setup();
+    render();
+    await waitForRows(2);
+
+    await user.click(screen.getByRole('button', { name: 'New user' }));
+    let dialog = await screen.findByRole('dialog', { name: 'New user' });
+    expect(within(dialog).getByLabelText(/^First name/)).toHaveFocus();
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: 'Edit User 1' }));
+    dialog = await screen.findByRole('dialog', { name: 'Edit user' });
+    expect(within(dialog).getByRole('combobox', { name: /^Status/ })).toHaveFocus();
+    await user.keyboard('{Escape}');
+
+    // Destructive dialog: the safe choice is focused, so Enter doesn't delete.
+    await user.click(screen.getByRole('button', { name: 'Delete User 1' }));
+    dialog = await screen.findByRole('dialog', { name: 'Delete User 1?' });
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
+  });
+
+  it('returns focus to the button that opened the dialog', async () => {
+    installUsersApi(makeUsers(2));
+    const user = userEvent.setup();
+    render();
+    await waitForRows(2);
+
+    const edit = screen.getByRole('button', { name: 'Edit User 2' });
+    await user.click(edit);
+    await screen.findByRole('dialog');
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(edit).toHaveFocus();
+
+    const remove = screen.getByRole('button', { name: 'Delete User 2' });
+    await user.click(remove);
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(remove).toHaveFocus();
+  });
+
+  it('moves focus to the heading once the deleted row is gone', async () => {
+    installUsersApi(makeUsers(2));
+    const user = userEvent.setup();
+    render();
+    await waitForRows(2);
+
+    await user.click(screen.getByRole('button', { name: 'Delete User 1' }));
+    await user.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }),
+    );
+    await waitFor(() => expect(rowNames()).toEqual(['User 2']));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Users' })).toHaveFocus(),
+    );
   });
 });

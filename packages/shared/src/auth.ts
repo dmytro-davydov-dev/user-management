@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EmailSchema, NameSchema, PasswordSchema } from './user';
+import { EmailSchema, NameSchema, PASSWORD_MAX_LENGTH, PasswordSchema } from './user';
 
 /** Server-side sign-up payload (no confirmation field; that is a client concern). */
 export const SignUpInputSchema = z
@@ -24,7 +24,10 @@ export type SignUpForm = z.infer<typeof SignUpFormSchema>;
 export const SignInInputSchema = z
   .object({
     email: EmailSchema,
-    password: z.string().min(1, 'Required').max(128),
+    password: z
+      .string()
+      .min(1, 'Required')
+      .max(PASSWORD_MAX_LENGTH, `At most ${PASSWORD_MAX_LENGTH} characters`),
   })
   .strict();
 export type SignInInput = z.infer<typeof SignInInputSchema>;

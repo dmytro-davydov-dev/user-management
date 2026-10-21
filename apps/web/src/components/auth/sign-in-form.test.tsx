@@ -74,8 +74,8 @@ describe('SignInForm', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByText('Invalid email address')).toBeInTheDocument();
-    expect(screen.getByText('Required')).toBeInTheDocument();
+    // Both fields empty.
+    expect(await screen.findAllByText('Required')).toHaveLength(2);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

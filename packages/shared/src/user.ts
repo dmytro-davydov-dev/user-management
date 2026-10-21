@@ -19,7 +19,8 @@ export const EmailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .max(EMAIL_MAX_LENGTH)
+  .min(1, 'Required')
+  .max(EMAIL_MAX_LENGTH, `At most ${EMAIL_MAX_LENGTH} characters`)
   .pipe(z.email('Invalid email address'));
 
 export const PasswordSchema = z

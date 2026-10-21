@@ -46,6 +46,8 @@ Start the database first: `docker compose up -d db`.
 - **Auth pages, axe:** both pages are rendered inside the auth layout and checked with axe-core (zero violations). `color-contrast` is disabled there because jsdom has no layout; contrast is left to the Playwright run.
 - **C3–C6, dashboard:** 13 users → pages of 6 / 6 / 1 with `?page=` in the URL; skeleton, empty and error-with-retry states; names disabled for Inactive users and re-enabled live; delete needs confirmation, and deleting the last row of a page moves back one page. A failed delete leaves the table unchanged and triggers no refetch.
 - **C7, theme:** `resolveThemeMode()`; the real `ThemeInitScript` markup is executed in jsdom to prove it applies a saved mode, falls back to the OS preference, and prefers the saved mode over the OS; the provider starts from storage or the OS, and a toggle writes `theme` to `localStorage` and updates the `<html>` class.
+- **T8.3, card layout:** `UserCardList` shows one card per user with every table field, wires Edit/Delete to the right user, shows six busy skeleton cards, and has no axe violations; `UsersTable` shows the table and keeps the cards hidden by default.
+- **T8.4, dialog focus:** each dialog focuses its first useful control (Delete focuses Cancel); Escape/Cancel returns focus to the opening button; after a delete, focus lands on the "Users" heading. The last check was confirmed to fail with the fix disabled.
 - **BFF cookie flags:** `HttpOnly`, `SameSite=Lax`, `Path=/`, `Max-Age` from the TTL, and `Secure` only when `COOKIE_SECURE=true`. The session ID never appears in a BFF response body.
 
 ## Conventions

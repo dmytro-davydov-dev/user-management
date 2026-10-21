@@ -76,8 +76,8 @@ Commit: `feat(api): add user and session persistence`
   - *Note:* Prisma pinned to `7.10.1` (v8 is RC): `prisma-client` generator (CJS) to gitignored `src/generated/prisma`, `prisma.config.ts`, `@prisma/adapter-pg`. Migration SQL verified on Postgres 16; confirm with `pnpm --filter api exec prisma migrate dev` locally (should report no drift).
 - [x] **T2.5** Seed script: 1 known admin (dev only) + 13 random users (exercises 3 pages). *Done when:* `pnpm --filter api db:seed` is idempotent.
   - *Note:* admin credentials from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`; refuses `NODE_ENV=production`; matches by email, never overwrites.
-- [ ] **T2.6** `compose.yaml` with `db` only (healthcheck, named volume) for local dev. *Done when:* `docker compose up db` is healthy.
-  - *Note:* file written and `docker compose config` validated; port bound to `127.0.0.1:5433` (avoids a host Postgres on 5432) for host-side dev. Pending: run `docker compose up -d db` locally and confirm healthy.
+- [x] **T2.6** `compose.yaml` with `db` only (healthcheck, named volume) for local dev. *Done when:* `docker compose up db` is healthy.
+  - *Note:* file written and `docker compose config` validated; port bound to `127.0.0.1:5433` (avoids a host Postgres on 5432) for host-side dev. Confirmed Oct 21: `user-management-db-1` reports `healthy`; `prisma migrate deploy` and the API ran against it.
 
 ### Phase 3 — Users API
 
@@ -183,14 +183,23 @@ Commit: `feat(web): implement user dashboard`
 
 Commit: `feat(web): persist theme preference`
 
-*Status:* T8.1–T8.2 done — 9 new tests (C7; 91 web tests total) green; build, lint, typecheck and format clean. T8.3–T8.4 next.
+*Status:* T8.1, T8.2 and T8.4 done; T8.3 implemented (open until its Playwright smoke, E6, lands in Phase 9). 99 web, 45 API unit and 49 API integration tests green; build, lint, typecheck and format clean.
 
 - [x] **T8.1** Theme stored in `localStorage` key `theme` **and** mirrored to a `theme` cookie so the server renders the right mode (no flash). *Done when:* reload in dark mode shows no light flash.
   - *Note:* changed approach, same goal: no cookie. MUI CSS-variable color schemes (`cssVariables` + `colorSchemes`) with `InitColorSchemeScript` (wrapped as `ThemeInitScript`, first script in `<body>`) setting `class="light|dark"` on `<html>` before any content is parsed, so the server never needs to know the mode. A cookie can't avoid the flash on a first visit with a dark OS, and reading it in the root layout would make the static auth pages dynamic. Storage keys and class strategy live in one `THEME_CONFIG` shared by the provider and the script; the toggle icon is chosen by CSS so nothing flips at hydration. Verified in headless Chrome against the production build: OS light, OS dark, and stored `dark` reopened in a new context (OS light) all show the right class and background at the first visible node; no console or hydration errors. Recorded in `docs/decisions.md`. E5 (Playwright) still to come in Phase 9.
 - [x] **T8.2** Default from `prefers-color-scheme` when nothing stored. *Done when:* unit test of resolver.
   - *Note:* `defaultMode: 'system'`; following the OS is not stored, so OS changes are followed live until the user toggles. C7 (`theme/theme-mode.test.tsx`) covers `resolveThemeMode()`, the real init script executed in jsdom, and the provider (start from storage/OS, toggle persists).
 - [ ] **T8.3** Responsive pass: table collapses to cards under 600 px. *Done when:* mobile Playwright smoke passes.
-- [ ] **T8.4** Copy, focus management in dialogs, `<title>` per page. *Done when:* manual review checklist ticked.
+  - *Note:* implemented. `UsersTable` renders the table and `UserCardList` (a `<ul aria-label="Users">` of cards with the same fields and action labels) and a desktop-first CSS breakpoint shows one, so SSR already matches the viewport. Pagination uses `siblingCount=0` and small buttons below 600 px. 5 component tests (cards, actions, skeleton, axe, default layout). Checked in headless Chrome against the real API + dev DB (14 temp users, removed afterwards): at 390 px (iPhone 13) the cards are visible and the table is hidden, there are 6 cards, pagination fits (right edge 293 px), there is no horizontal overflow on the dashboard, sign-in or sign-up, and the edit dialog fits (32–358 px); at 1280 px the table is shown and the cards are hidden; no console errors. Open until E6 (Phase 9).
+- [x] **T8.4** Copy, focus management in dialogs, `<title>` per page. *Done when:* manual review checklist ticked.
+  - *Review checklist* (Oct 21; browser items checked in headless Chrome against the production build + real API):
+    - [x] Every page has a distinct `<title>` (`… · User Management`): Sign in, Create account, Users, Page not found (HTTP 404), Something went wrong (`error.tsx` renders `<title>`; checked with the API stopped).
+    - [x] Unknown URLs get an app-styled 404 (`app/not-found.tsx`) instead of Next's default.
+    - [x] Each dialog focuses its first useful control on open; Delete focuses Cancel (component tests; New user also checked keyboard-only in the browser).
+    - [x] Escape/Cancel returns focus to the opening button (component tests + browser).
+    - [x] When the opening row disappears (delete, or edit finds the user gone), focus moves to the "Users" heading instead of `<body>` (test fails without the fix).
+    - [x] No Zod default messages reach forms: empty email → "Required"; email > 255 and sign-in password > 128 → "At most N characters" (shared schemas; 2 tests updated).
+    - [x] Copy is sentence case, with curly apostrophes and consistent verbs (Create / Save / Delete / Sign out) and success toasts (Created / Saved / Deleted …).
 
 ### Phase 9 — E2E & CI
 
