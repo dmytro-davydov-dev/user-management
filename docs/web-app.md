@@ -2,7 +2,7 @@
 
 Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend-for-frontend (BFF)**: the browser talks only to the web app, which holds the session in an HttpOnly cookie and calls the API server-side. API endpoints are in [api.md](api.md); the session model is in [auth-and-sessions.md](auth-and-sessions.md).
 
-> Status: shell, BFF, route protection and theming (Phase 5), sign-up/sign-in forms (Phase 6) and the users dashboard (Phase 7) are done. Theme persistence and the mobile card layout are Phase 8.
+> Status: shell, BFF, route protection and theming (Phase 5), sign-up/sign-in forms (Phase 6), the users dashboard (Phase 7) and theme persistence (Phase 8) are done. The mobile card layout is still to come in Phase 8.
 
 ## Routes
 
@@ -126,8 +126,10 @@ Behaviour shared by both:
 ## UI and theming
 
 - **MUI 6** with `AppRouterCacheProvider` (Emotion styles rendered on the server, no unstyled flash) and `CssBaseline`.
-- **Themes:** `createAppTheme('light' | 'dark')` in [`theme/theme.ts`](../apps/web/src/theme/theme.ts). The palette, 10 px radius, a system font stack (no web-font download at build time) and flat components are set there.
-- **Mode switching:** `ThemeModeProvider` / `useThemeMode()` hold the mode in React state. Persistence across browser restarts (localStorage plus a cookie so the server renders the right mode without a flash) is Phase 8.
+- **Theme:** one `appTheme` in [`theme/theme.ts`](../apps/web/src/theme/theme.ts) with **both** color schemes as CSS variables (`cssVariables`, `colorSchemes.light/dark`). The palettes, 10 px radius, a system font stack (no web-font download at build time) and flat components are set there.
+- **Persistence:** the chosen mode is saved in `localStorage` under `theme` (`light` / `dark`), so it survives closing and reopening the browser. With nothing saved, the app follows the OS (`prefers-color-scheme`) and keeps following it live. MUI also syncs the choice across open tabs.
+- **No flash:** the server renders the same HTML for both modes. `ThemeInitScript` (MUI's `InitColorSchemeScript`), the first script in `<body>`, reads the saved mode or the OS preference and sets `class="light|dark"` on `<html>` before any content is parsed; CSS variables do the rest. The toggle's sun/moon icon is also picked by CSS (`theme.applyStyles('dark', …)`), not by state, so nothing changes at hydration. `<html>` has `suppressHydrationWarning` because the script changes its class.
+- **Switching:** `useThemeMode()` returns the resolved `mode` (`undefined` until mounted) and `toggleMode()`; a toggle stores an explicit `light`/`dark`, replacing "follow the OS". Storage keys and the `<html>` class strategy live in one `THEME_CONFIG`, shared by the provider and the script.
 - **Errors:** `app/error.tsx` shows a retry screen, for example when the API is down during server rendering.
 
 ## Configuration
@@ -163,6 +165,6 @@ src/
     bff-types.ts                BFF response types
     server/                     env, upstream fetch + cookie helpers, auth-routes, current-user
     client/                     api-client, query client + keys, UnauthorizedRedirect, usePageParam
-  theme/                        themes, ThemeModeProvider
+  theme/                        theme, THEME_CONFIG, ThemeModeProvider, ThemeInitScript
   middleware.ts
 ```

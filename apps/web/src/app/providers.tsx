@@ -6,19 +6,12 @@ import { type ReactNode, useState } from 'react';
 import { createQueryClient } from '@/lib/client/query';
 import { UnauthorizedRedirect } from '@/lib/client/unauthorized-redirect';
 import { ThemeModeProvider } from '@/theme/theme-mode';
-import type { ThemeMode } from '@/theme/theme';
 
-export function Providers({
-  initialMode,
-  children,
-}: {
-  initialMode: ThemeMode;
-  children: ReactNode;
-}) {
+export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   return (
     <AppRouterCacheProvider options={{ key: 'mui' }}>
-      <ThemeModeProvider initialMode={initialMode}>
+      <ThemeModeProvider>
         <QueryClientProvider client={queryClient}>
           <UnauthorizedRedirect />
           {children}

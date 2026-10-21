@@ -21,7 +21,7 @@ import { useThemeMode } from '@/theme/theme-mode';
 export function AppShell({ user, children }: { user: User; children: ReactNode }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { mode, toggleMode } = useThemeMode();
+  const { toggleMode } = useThemeMode();
   const signOut = useMutation({
     mutationFn: apiClient.auth.signOut,
     // The BFF clears the cookie even if the API call fails, so always leave.
@@ -46,9 +46,16 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           >
             {user.firstName} {user.lastName}
           </Typography>
-          <Tooltip title={mode === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
+          <Tooltip title="Toggle light/dark theme">
             <IconButton onClick={toggleMode} aria-label="Toggle theme">
-              {mode === 'dark' ? <LightModeOutlined /> : <DarkModeOutlined />}
+              {/* Picked by CSS, not state: the server can't know the mode, so this never flips after hydration. */}
+              <DarkModeOutlined sx={(theme) => theme.applyStyles('dark', { display: 'none' })} />
+              <LightModeOutlined
+                sx={(theme) => ({
+                  display: 'none',
+                  ...theme.applyStyles('dark', { display: 'inline-block' }),
+                })}
+              />
             </IconButton>
           </Tooltip>
           <Button

@@ -17,6 +17,7 @@ Why the system looks the way it does, which defaults were chosen where the requi
 | Errors | One `{ code, message, details? }` shape, closed list of codes | Clients branch on `code`, not on message text | Framework defaults |
 | Pagination | Offset (`page`, `limit ≤ 6`), ordered `createdAt DESC, id DESC` | Matches a page-numbered UI and is fine at this scale; `id` keeps pages stable | Cursor pagination (better for large or fast-changing sets) |
 | User deletion | Hard delete; sessions cascade | Simple and matches the exercise | Soft delete (production, for audit) |
+| Theme persistence | `localStorage` (`theme`) + MUI CSS-variable color schemes, applied by an inline script before first paint; OS preference when nothing is saved | No flash on reload, including the first visit with a dark OS; static auth pages stay static | `theme` cookie read by the server (the original plan): no flash for a saved choice, but the server can't know the OS preference on a first visit, and reading cookies in the root layout makes every page dynamic |
 
 ## Open decisions
 

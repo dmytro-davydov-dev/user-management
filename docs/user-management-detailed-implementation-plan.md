@@ -183,8 +183,12 @@ Commit: `feat(web): implement user dashboard`
 
 Commit: `feat(web): persist theme preference`
 
-- [ ] **T8.1** Theme stored in `localStorage` key `theme` **and** mirrored to a `theme` cookie so the server renders the right mode (no flash). *Done when:* reload in dark mode shows no light flash.
-- [ ] **T8.2** Default from `prefers-color-scheme` when nothing stored. *Done when:* unit test of resolver.
+*Status:* T8.1–T8.2 done — 9 new tests (C7; 91 web tests total) green; build, lint, typecheck and format clean. T8.3–T8.4 next.
+
+- [x] **T8.1** Theme stored in `localStorage` key `theme` **and** mirrored to a `theme` cookie so the server renders the right mode (no flash). *Done when:* reload in dark mode shows no light flash.
+  - *Note:* changed approach, same goal: no cookie. MUI CSS-variable color schemes (`cssVariables` + `colorSchemes`) with `InitColorSchemeScript` (wrapped as `ThemeInitScript`, first script in `<body>`) setting `class="light|dark"` on `<html>` before any content is parsed, so the server never needs to know the mode. A cookie can't avoid the flash on a first visit with a dark OS, and reading it in the root layout would make the static auth pages dynamic. Storage keys and class strategy live in one `THEME_CONFIG` shared by the provider and the script; the toggle icon is chosen by CSS so nothing flips at hydration. Verified in headless Chrome against the production build: OS light, OS dark, and stored `dark` reopened in a new context (OS light) all show the right class and background at the first visible node; no console or hydration errors. Recorded in `docs/decisions.md`. E5 (Playwright) still to come in Phase 9.
+- [x] **T8.2** Default from `prefers-color-scheme` when nothing stored. *Done when:* unit test of resolver.
+  - *Note:* `defaultMode: 'system'`; following the OS is not stored, so OS changes are followed live until the user toggles. C7 (`theme/theme-mode.test.tsx`) covers `resolveThemeMode()`, the real init script executed in jsdom, and the provider (start from storage/OS, toggle persists).
 - [ ] **T8.3** Responsive pass: table collapses to cards under 600 px. *Done when:* mobile Playwright smoke passes.
 - [ ] **T8.4** Copy, focus management in dialogs, `<title>` per page. *Done when:* manual review checklist ticked.
 

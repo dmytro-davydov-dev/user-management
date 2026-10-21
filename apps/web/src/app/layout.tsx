@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { ThemeInitScript } from '@/theme/theme-init-script';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    // The color-scheme script adds a class to <html> before hydration.
+    <html lang="en" suppressHydrationWarning>
       <body>
-        <Providers initialMode="light">{children}</Providers>
+        <ThemeInitScript />
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

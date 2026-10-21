@@ -11,7 +11,7 @@ export function renderWithProviders(
 ) {
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <ThemeModeProvider initialMode="light">
+      <ThemeModeProvider>
         <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
       </ThemeModeProvider>
     );
