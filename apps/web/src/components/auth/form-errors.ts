@@ -28,28 +28,42 @@ function validationDetails(details: unknown): ValidationDetail[] {
   });
 }
 
+type MessageKey = keyof typeof AUTH_ERROR_MESSAGES | string;
+
+export interface ServerErrorOptions<T extends FieldValues> {
+  /** Error codes that belong to one field, e.g. `{ EMAIL_TAKEN: 'email' }`. */
+  fieldCodes?: Partial<Record<string, Path<T>>>;
+  /** Per-form copy overriding `AUTH_ERROR_MESSAGES` for specific codes. */
+  messages?: Partial<Record<MessageKey, string>>;
+}
+
 /**
- * Applies a failed auth request to the form: known fields get inline errors (the first one
- * is focused), everything else becomes a form-level message. Returns that message, if any.
+ * Applies a failed request to a form: known fields get inline errors (the first one is
+ * focused), everything else becomes a form-level message. Returns that message, if any.
  */
 export function applyServerError<T extends FieldValues>(
   error: unknown,
   fields: readonly Path<T>[],
   setError: UseFormSetError<T>,
-  fieldCodes: Partial<Record<string, Path<T>>> = {},
+  { fieldCodes = {}, messages = {} }: ServerErrorOptions<T> = {},
 ): string | null {
-  if (!(error instanceof ApiClientError)) return AUTH_ERROR_MESSAGES.GENERIC;
+  const copy = (code: string): string | undefined =>
+    messages[code] ?? AUTH_ERROR_MESSAGES[code as keyof typeof AUTH_ERROR_MESSAGES];
+
+  if (!(error instanceof ApiClientError)) return copy('GENERIC') ?? AUTH_ERROR_MESSAGES.GENERIC;
 
   const codeField = fieldCodes[error.code];
   if (codeField) {
-    const message =
-      AUTH_ERROR_MESSAGES[error.code as keyof typeof AUTH_ERROR_MESSAGES] ?? error.message;
-    setError(codeField, { type: 'server', message }, { shouldFocus: true });
+    setError(
+      codeField,
+      { type: 'server', message: copy(error.code) ?? error.message },
+      { shouldFocus: true },
+    );
     return null;
   }
 
   if (error.code === 'VALIDATION_ERROR') {
-    const known = validationDetails(error.details).filter((d): d is ValidationDetail =>
+    const known = validationDetails(error.details).filter((d) =>
       (fields as readonly string[]).includes(d.path),
     );
     known.forEach((d, i) =>
@@ -59,9 +73,8 @@ export function applyServerError<T extends FieldValues>(
     return error.message || AUTH_ERROR_MESSAGES.GENERIC;
   }
 
-  if (error.code in AUTH_ERROR_MESSAGES) {
-    return AUTH_ERROR_MESSAGES[error.code as keyof typeof AUTH_ERROR_MESSAGES];
-  }
+  const known = copy(error.code);
+  if (known) return known;
   return error.status >= 500 || error.status === 0
     ? AUTH_ERROR_MESSAGES.SERVICE_UNAVAILABLE
     : AUTH_ERROR_MESSAGES.GENERIC;

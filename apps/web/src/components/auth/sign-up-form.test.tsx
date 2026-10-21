@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { jsonResponse, renderWithProviders, TEST_USER } from '@/test/render';
@@ -96,8 +96,9 @@ describe('SignUpForm', () => {
 
     await waitFor(() => expect(submit()).toBeDisabled());
     // Implicit submission (Enter in a field) is ignored while pending.
-    fireEvent.submit(screen.getByRole('form', { name: 'Create account' }));
-    await new Promise((r) => setTimeout(r, 0));
+    await act(async () => {
+      fireEvent.submit(screen.getByRole('form', { name: 'Create account' }));
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     resolve(jsonResponse(201, { user: TEST_USER }));
     await waitFor(() => expect(router.replace).toHaveBeenCalled());

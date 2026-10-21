@@ -36,7 +36,9 @@ export function SignUpForm() {
       apiClient.auth.signUp(input),
     onSuccess,
     onError: (error) =>
-      setFormError(applyServerError(error, FIELDS, setError, { EMAIL_TAKEN: 'email' })),
+      setFormError(
+        applyServerError(error, FIELDS, setError, { fieldCodes: { EMAIL_TAKEN: 'email' } }),
+      ),
   });
 
   const busy = signUp.isPending || signUp.isSuccess;

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import axe from 'axe-core';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '@/test/render';
@@ -11,10 +11,13 @@ const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.
 vi.mock('next/navigation', () => ({ useRouter: () => router, usePathname: () => '/' }));
 
 async function axeViolations(container: Element) {
-  const results = await axe.run(container, {
-    // jsdom has no layout engine, so contrast cannot be computed here.
-    rules: { 'color-contrast': { enabled: false } },
-  });
+  // axe moves focus while it inspects; let React flush the resulting form-state updates.
+  const results = await act(() =>
+    axe.run(container, {
+      // jsdom has no layout engine, so contrast cannot be computed here.
+      rules: { 'color-contrast': { enabled: false } },
+    }),
+  );
   return results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.html).join(', ')}`);
 }
 

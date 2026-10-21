@@ -2,7 +2,7 @@
 
 Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend-for-frontend (BFF)**: the browser talks only to the web app, which holds the session in an HttpOnly cookie and calls the API server-side. API endpoints are in [api.md](api.md); the session model is in [auth-and-sessions.md](auth-and-sessions.md).
 
-> Status: shell, BFF, route protection and theming are done (Phase 5); sign-up/sign-in forms are done (Phase 6). The users table and dialogs land in Phase 7.
+> Status: shell, BFF, route protection and theming (Phase 5), sign-up/sign-in forms (Phase 6) and the users dashboard (Phase 7) are done. Theme persistence and the mobile card layout are Phase 8.
 
 ## Routes
 
@@ -10,7 +10,7 @@ Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend
 | --- | --- | --- |
 | `/` | Server component | Confirms the session with the API → `/dashboard` if valid, else `/sign-up` |
 | `/sign-up`, `/sign-in` | `(auth)` group | Centered card with the sign-up / sign-in form ([Auth forms](#auth-forms)). Redirected to `/dashboard` by middleware when a session cookie exists |
-| `/dashboard` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (user name, theme toggle, sign out) |
+| `/dashboard[?page=N]` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (user name, theme toggle, sign out). The users table and dialogs ([Users dashboard](#users-dashboard)) |
 | `/api/*` | Route handlers | The BFF (below) |
 
 Route groups in parentheses don't appear in URLs; they only share layouts.
@@ -94,6 +94,29 @@ Behaviour shared by both:
 - **Accessibility.** Native `<form noValidate>` with an accessible name, labelled MUI `TextField`s with `aria-invalid` and helper-text errors, a real submit button (Enter submits), error `Alert`s with `role="alert"`, cross-links between the two pages. An axe-core check runs in the component tests.
 - Server-error mapping lives in one helper, `applyServerError()` (`form-errors.ts`), with the copy in `AUTH_ERROR_MESSAGES`.
 
+## Users dashboard
+
+`UsersDashboard` ([`components/users/`](../apps/web/src/components/users/)) is a client component; the server page only passes the current user's ID (from the layout's cached `requireUser()`).
+
+- **Page in the URL.** `usePageParam()` reads `?page=` (missing or invalid → 1; page 1 is the bare `/dashboard`) and writes it with `history.pushState`, which Next.js syncs into `useSearchParams` without a server round trip. Back/Forward move between pages; links to a page are shareable. A page past the end (stale link, rows deleted elsewhere) replaces itself with the last page.
+- **Data.** `useQuery(['users', page])` with `keepPreviousData`, so switching pages keeps the old rows (plus a thin progress bar) instead of flashing a skeleton. Columns: name (your own row is tagged "You"), email, status chip, logins, created, updated. Dates use the viewer's locale inside `<time dateTime>`; they render only in the browser, so there is no hydration mismatch.
+- **States.** First load: 6 skeleton rows (`aria-busy`). No users: empty state with a create action. Error: `Alert` with Retry. On narrow screens the table scrolls inside its card (cards under 600 px come in Phase 8).
+- **Mutations are not optimistic.** The table changes only after the API confirms: success closes the dialog, shows a snackbar and invalidates `['users']`. A failure keeps the dialog open with the error and leaves the table untouched.
+
+| Dialog | Behaviour |
+| --- | --- |
+| **New user** | Names, email, password, status (`CreateUserInputSchema`). 409 → email field. On success, goes to page 1, where the newest user is first |
+| **Edit user** | Status, first/last name, read-only email and created date. Names are **disabled while the status is Inactive** and re-enabled as soon as it's set to Active; switching to Inactive discards unsaved name edits. `buildUpdate()` sends only changed fields and never sends names for a user who ends up Inactive (the API would reject the whole request); reactivate + rename go in one request because the API applies status first. No changes → closes without a request. 403 `USER_INACTIVE` → form error; 404 → closes, snackbar, refetch |
+| **Delete** | Confirmation required ("Cancel" is focused). Deleting the last row of a page moves to the previous page. 404 counts as success (already gone) |
+
+### Your own account
+
+| Action | What happens |
+| --- | --- |
+| Rename yourself | Saved like any user, then `router.refresh()` re-renders the server-side app bar with the new name |
+| Deactivate yourself | The edit dialog warns first. Your current session **stays valid** until you sign out (the API's default, see [decisions](decisions.md#open-decisions)); you can't sign in again or rename yourself until someone reactivates you |
+| Delete yourself | The dialog says you'll be signed out. The API deletes your sessions with the account; the app then calls sign-out (clears the cookie), clears the query cache and goes to `/sign-in` |
+
 ## Client data layer
 
 - **`apiClient`** ([`lib/client/api-client.ts`](../apps/web/src/lib/client/api-client.ts)) is a typed wrapper over `fetch('/api/…')` with `auth.*` and `users.*` methods. Non-2xx responses throw `ApiClientError { status, code, message, details }`, parsed from the shared error shape. Network failures become `status 0, SERVICE_UNAVAILABLE`.
@@ -134,11 +157,12 @@ src/
   components/
     layout/app-shell.tsx
     auth/                       sign-up / sign-in forms, FormTextField, server-error mapping, useAuthSuccess
+    users/                      UsersDashboard, UsersTable, create / edit / delete dialogs
   lib/
     session-cookie.ts           cookie name (Edge-safe, used by middleware)
     bff-types.ts                BFF response types
     server/                     env, upstream fetch + cookie helpers, auth-routes, current-user
-    client/                     api-client, query client + keys, UnauthorizedRedirect
+    client/                     api-client, query client + keys, UnauthorizedRedirect, usePageParam
   theme/                        themes, ThemeModeProvider
   middleware.ts
 ```

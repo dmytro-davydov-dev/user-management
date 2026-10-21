@@ -27,7 +27,7 @@ Where the requirements leave a choice open, these defaults are implemented.
 | Does sign-up count as a login? | **Yes**: `loginsCount = 1` after sign-up | Sign-up creates a session, and every session counts |
 | Can admins reactivate inactive users? | **Yes** | `PATCH { status: "ACTIVE" }`; renaming in the same request works because status is applied first |
 | What happens to sessions when a user is deactivated? | **They stay valid** until sign-out or expiry; new sessions are refused | Alternative: revoke immediately (one extra `UPDATE` in the status change) |
-| Can you deactivate or delete yourself? | **Yes**. Deleting yourself ends your session at once; deactivating keeps it | UI behaviour is settled in Phase 7 (T7.8) |
+| Can you deactivate or delete yourself? | **Yes**. Deleting yourself ends your session at once and the UI signs you out; deactivating keeps your current session | The UI confirms both and warns before self-deactivation ([web-app.md](web-app.md#your-own-account)) |
 | Session lifetime | **24 h**, fixed, no sliding renewal | `SESSION_TTL_HOURS` |
 | `limit` above 6 | **400**, not silently reduced | Makes client bugs visible |
 | `POST /sessions` | Requires email + password, never a bare `userId` | A bare `userId` would let anyone impersonate any user |

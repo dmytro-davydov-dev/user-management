@@ -1,15 +1,11 @@
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import type { Metadata } from 'next';
+import { UsersDashboard } from '@/components/users/users-dashboard';
+import { requireUser } from '@/lib/server/current-user';
 
 export const metadata: Metadata = { title: 'Users' };
 
-// The users table and dialogs (T7.2–T7.7) land here in Phase 7.
-export default function DashboardPage() {
-  return (
-    <Stack spacing={1}>
-      <Typography variant="h1">Users</Typography>
-      <Typography color="text.secondary">Manage accounts, status and access.</Typography>
-    </Stack>
-  );
+export default async function DashboardPage() {
+  // Deduplicated with the layout's call (React `cache`): no second API request.
+  const user = await requireUser();
+  return <UsersDashboard currentUserId={user.id} />;
 }

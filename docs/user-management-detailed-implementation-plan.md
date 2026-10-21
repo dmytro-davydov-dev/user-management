@@ -160,15 +160,24 @@ Commit: `feat(web): add authentication flows`
 
 Commit: `feat(web): implement user dashboard`
 
-- [ ] **T7.1** Layout: app bar with current user name, theme toggle, logout. *Done when:* logout ends on `/sign-in` and the old cookie is rejected.
-  - *Note:* app bar built early in Phase 5 (`components/layout/app-shell.tsx`) and checked manually; E2E coverage still to come.
-- [ ] **T7.2** Users table: name, email, status chip, logins, created, updated; page from `?page=` search param; MUI `Pagination` with `totalPages`. *Done when:* 13 users → 3 pages of 6/6/1.
-- [ ] **T7.3** Loading skeleton, empty state, error state with retry. *Done when:* each state has a component test.
-- [ ] **T7.4** Create dialog (names, email, password, status). *Done when:* new user appears on page 1 after success.
-- [ ] **T7.5** Edit dialog: names disabled when status is INACTIVE (re-enabled live when switched to ACTIVE); `createdAt` read-only. *Done when:* RTL test for disabled inputs.
+*Status:* implemented — 33 new web tests (82 total) green; build, lint, typecheck and format clean. Also driven in headless Chromium against the production build and a stateful stub API (14 users): pagination and Back, `?page=` deep links, reactivate + rename, deleting the last row of a page, create → page 1, self-rename refreshes the app bar, sign-out kills the old cookie, self-delete signs out, no horizontal page overflow at 390 px and 1280 px. T7.6 stays open until its E2E check lands in Phase 9.
+
+- [x] **T7.1** Layout: app bar with current user name, theme toggle, logout. *Done when:* logout ends on `/sign-in` and the old cookie is rejected.
+  - *Note:* app bar from Phase 5 (`components/layout/app-shell.tsx`). Browser check: after sign-out, re-adding the old `sid` cookie still lands on `/sign-in` and `/api/users` returns 401; the API side is I11. A full E2 run comes in Phase 9.
+- [x] **T7.2** Users table: name, email, status chip, logins, created, updated; page from `?page=` search param; MUI `Pagination` with `totalPages`. *Done when:* 13 users → 3 pages of 6/6/1.
+  - *Note:* C3 covers 6/6/1. `usePageParam()` reads `?page=` (invalid → 1, page 1 = bare URL) and writes with `history.pushState`, which Next syncs into `useSearchParams` without a server round trip; Back/Forward work. A page past the end replaces itself with the last page. `keepPreviousData` avoids skeleton flashes between pages. Own row tagged "You". Dates use the viewer's locale in `<time dateTime>`.
+- [x] **T7.3** Loading skeleton, empty state, error state with retry. *Done when:* each state has a component test.
+  - *Note:* 6 skeleton rows with `aria-busy`; empty state with a "New user" action; error `Alert` with Retry (4xx not auto-retried, 5xx retried twice first). A thin progress bar shows background refetches.
+- [x] **T7.4** Create dialog (names, email, password, status). *Done when:* new user appears on page 1 after success.
+  - *Note:* shared `CreateUserInputSchema`; 409 → email field. On success: navigate to page 1 (newest first), refetch, snackbar.
+- [x] **T7.5** Edit dialog: names disabled when status is INACTIVE (re-enabled live when switched to ACTIVE); `createdAt` read-only. *Done when:* RTL test for disabled inputs.
+  - *Note:* C5. Email and createdAt are read-only fields. Switching to Inactive resets unsaved name edits. `buildUpdate()` sends only changed fields and never sends names when the result is INACTIVE (the API would reject the whole request); reactivate + rename go in one request (status applied first). Nothing changed → closes without a request. A 403 `USER_INACTIVE` race shows a form error; 404 closes with a snackbar and refetches.
 - [ ] **T7.6** Delete confirmation dialog; deleting last row on a page moves to previous page. *Done when:* E2E covers the edge.
-- [ ] **T7.7** Mutations invalidate `['users']`; snackbar success/error feedback; non-optimistic by default. *Done when:* failed mutation leaves table unchanged.
-- [ ] **T7.8** Deleting or deactivating your own account: confirm, then sign out (deleted) or keep session (deactivated, documented). *Done when:* behavior documented in README.
+  - *Note:* implemented; C6 and a component test cover confirmation and the last-row move, and the browser check confirmed it. Open until E3 (Phase 9). A 404 on delete counts as done (already gone).
+- [x] **T7.7** Mutations invalidate `['users']`; snackbar success/error feedback; non-optimistic by default. *Done when:* failed mutation leaves table unchanged.
+  - *Note:* tested: a 500 on delete keeps the row, shows the error and triggers no refetch. Success → snackbar. Failures are shown inside the open dialog (form `Alert`) so the input isn't lost; only "user no longer exists" uses an error snackbar.
+- [x] **T7.8** Deleting or deactivating your own account: confirm, then sign out (deleted) or keep session (deactivated, documented). *Done when:* behavior documented in README.
+  - *Note:* self-delete dialog says you will be signed out; afterwards the BFF clears the cookie and you land on `/sign-in`. Self-deactivation shows a warning in the edit dialog and keeps the session. Renaming yourself calls `router.refresh()` so the server-rendered app bar updates. Documented in README ("Your own account") and `docs/decisions.md`.
 
 ### Phase 8 — Theme persistence & polish
 

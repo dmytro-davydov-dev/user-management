@@ -2,7 +2,7 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phases 1–5 (bootstrap, persistence, users API, auth & sessions, web shell & BFF) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+> **Status:** work in progress. Phases 1–7 (bootstrap, persistence, users API, auth & sessions, web shell & BFF, sign-up/sign-in, users dashboard) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
 ## Documentation
 
@@ -47,6 +47,7 @@ PostgreSQL :5432
 - Passwords are hashed with Argon2id and never returned.
 - The dashboard shows six users per page.
 - Any signed-in user acts as admin (exercise simplification; production would need RBAC).
+- **Your own account:** you can rename, deactivate or delete yourself. Deleting yourself ends all your sessions and signs you out. Deactivating yourself keeps your current session until you sign out, but you can't sign in again (or rename yourself) until someone reactivates you; the UI warns before both. Details: [web-app.md](docs/web-app.md#your-own-account).
 
 ## API overview
 

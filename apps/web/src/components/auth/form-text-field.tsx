@@ -19,10 +19,11 @@ export function FormTextField<T extends FieldValues>({ control, name, hint, ...p
     <Controller
       control={control}
       name={name}
-      render={({ field: { ref, value, ...field }, fieldState: { error } }) => (
+      render={({ field: { ref, value, disabled, ...field }, fieldState: { error } }) => (
         <TextField
           {...props}
           {...field}
+          disabled={Boolean(props.disabled ?? disabled)}
           value={(value as string | undefined) ?? ''}
           inputRef={ref}
           error={Boolean(error)}
