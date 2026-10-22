@@ -2,7 +2,14 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phases 1–8 (bootstrap, persistence, users API, auth & sessions, web shell & BFF, sign-up/sign-in, users dashboard, theme & polish) are done and the Playwright E2E suite and CI (Phase 9) are in place; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+**What's in it**
+
+- **Backend:** REST API for users and sessions, covering create, list (paginated), update, delete, sign-up, sign-in and session termination. It enforces the domain rules: `createdAt` is immutable, `updatedAt` is always bumped, inactive users can't be renamed or start sessions.
+- **Sign-up / sign-in:** sign-up is the landing page, with links between it and sign-in. Passwords are typed twice and checked in the browser before the request goes out. Both flows start a session and open the dashboard. The session ID goes with every later request, and "Sign out" ends the session.
+- **Dashboard:** only for signed-in users. Six users per page, with create, edit and delete; it switches to cards on phones.
+- **Themes:** light, dark or system, remembered across browser restarts without a flash of the wrong theme.
+- **Tests:** unit, component, API integration (real PostgreSQL) and Playwright E2E, all run in CI.
+- **Containers:** `docker compose up --build` starts PostgreSQL, a one-shot migration, the API and the web app, with non-root images and healthchecks.
 
 ## Documentation
 
@@ -67,7 +74,28 @@ Full reference with examples: [docs/api.md](docs/api.md). Swagger UI runs at `ht
 
 ## Quick start
 
-Prerequisites: Node 22 (`.nvmrc`), pnpm 10 (via Corepack), Docker.
+### Run it with Docker (only Docker needed)
+
+Requires Docker with Compose v2.24+.
+
+```bash
+cp .env.example .env                  # defaults work as-is
+docker compose up --build -d --wait   # db → migrate → api → web, waits until healthy
+```
+
+Open <http://localhost:3000> (set `WEB_PORT` in `.env` if 3000 is taken). You land on the sign-up page. Create an account, or load the sample data and sign in as `admin@example.com` / `change-me-locally`:
+
+```bash
+docker compose --profile seed run --rm --build seed   # admin + 13 sample users (idempotent)
+docker compose ps                                     # db, api, web healthy; migrate exited (0)
+docker compose down                                   # stop; add -v to wipe the database
+```
+
+Only the web app is published on the host. The browser talks to the Next.js server, which calls the API on the internal Compose network.
+
+### Develop on the host
+
+Requires Node 22 (`.nvmrc`), pnpm 10 (via Corepack) and Docker for PostgreSQL.
 
 ```bash
 corepack enable
@@ -89,15 +117,30 @@ pnpm --filter @um/api test:int        # API integration tests (real PostgreSQL)
 pnpm e2e:docker                       # Playwright E2E against a fresh Compose stack
 ```
 
-Full stack in Docker Compose:
-
-```bash
-docker compose up --build -d          # app at http://localhost:3000 (WEB_PORT to change)
-docker compose --profile seed run --rm --build seed   # optional sample data
-docker compose down                   # add -v to wipe the database
-```
-
 Environment variables, every command and troubleshooting tips: [docs/development.md](docs/development.md). Test layers and the test database: [docs/testing.md](docs/testing.md).
+
+## Testing
+
+| Layer              | Tool                                | What it proves                                                                                                              |
+| ------------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Unit (API, shared) | Vitest                              | Validation, password hashing, session guard, error mapping                                                                  |
+| Component (web)    | Vitest + React Testing Library      | Forms (including the password match check before any request), table and pagination, loading/empty/error states, theme      |
+| Integration (API)  | Vitest + Supertest, real PostgreSQL | Every endpoint, domain rules, `loginsCount` under concurrent sign-ins, a deactivation racing a sign-in                      |
+| End-to-end         | Playwright (Chromium + Pixel 7)     | Redirects, sign-up → dashboard → sign-out → sign-in, CRUD, pagination, theme after restart, revoked sessions, mobile layout |
+
+CI (`.github/workflows/ci.yml`) runs lint, format, typecheck, unit and integration tests, then builds the images and runs the E2E suite against a fresh Compose stack. Details: [docs/testing.md](docs/testing.md).
+
+## Tradeoffs, limitations and future work
+
+Full list with alternatives in [docs/decisions.md](docs/decisions.md). The main points:
+
+- **Everyone is an admin.** The challenge asks for it. Production needs roles, server-side authorization and an audit trail.
+- **Sessions are database rows.** That means instant revocation, at the cost of one query per request. IDs are stored as-is, never rotated and never purged. Next steps: hash them at rest, rotate on privilege changes, add a cleanup job and maybe a cache.
+- **Account security is basic.** Argon2id hashing, an HttpOnly `SameSite=Lax` cookie and an Origin check in the BFF are in place. Missing: rate limiting, lockout, email verification and password reset.
+- **Deactivating a user keeps their open sessions** until sign-out or the 24 h expiry; only new sessions are refused. Revoking at once would be a one-line change if needed.
+- **Offset pagination.** Fine for a page-numbered UI at this scale; large or fast-changing tables would want cursor pagination.
+- **Operations:** no structured logging, request IDs, metrics, tracing or backups yet. Migrations run as a one-shot Compose service; a real deployment would run them from the release pipeline.
+- **Not implemented** because the challenge doesn't ask for them: avatars, search and sorting, i18n.
 
 ## Tech stack
 

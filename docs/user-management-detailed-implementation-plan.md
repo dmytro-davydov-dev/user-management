@@ -205,7 +205,7 @@ Commit: `feat(web): persist theme preference`
 
 Commit: `test: cover core user journeys with Playwright`
 
-*Status:* done — CI green on `main` ([run 39775053281](https://github.com/dmytro-davydov-dev/user-management/actions/runs/39775053281), commit `bc6f3cc`). 16 E2E tests (15 desktop Chromium + 1 Pixel 7) green twice in a row against a host-run production stack, and green in Docker via `pnpm e2e:docker` on a fresh database. 4 shared, 45 API unit, 49 API integration and 99 web tests green; lint, typecheck and format clean. Needed the Docker images and `migrate` service from Phase 10 (T10.1–T10.3) pulled forward.
+*Status:* done — CI green on `main` ([run 39775053281](https://github.com/dmytro-davydov-dev/user-management/actions/runs/39775053281), on the Playwright commit before the history was squashed). 16 E2E tests (15 desktop Chromium + 1 Pixel 7) green twice in a row against a host-run production stack, and green in Docker via `pnpm e2e:docker` on a fresh database. 4 shared, 45 API unit, 49 API integration and 99 web tests green; lint, typecheck and format clean. Needed the Docker images and `migrate` service from Phase 10 (T10.1–T10.3) pulled forward.
 
 - [x] **T9.1** `playwright.config.ts`: `baseURL` from env, Chromium + mobile project, traces on failure. *Done when:* `pnpm e2e` runs against local stack.
   - *Note:* `e2e/` is a workspace package (`@um/e2e`, `@playwright/test` 1.64.1 pinned to match the Docker image). `baseURL` = `E2E_BASE_URL` (default `http://localhost:3000`); projects `chromium` (Desktop Chrome, all but `@mobile`) and `mobile` (Pixel 7, `@mobile` only); trace/screenshot/video retained on failure; HTML report. The script is `e2e`, not `test`, so `pnpm test` stays unit-only. Verified: `E2E_BASE_URL=http://localhost:3100 pnpm e2e` → 16 passed.
@@ -216,11 +216,13 @@ Commit: `test: cover core user journeys with Playwright`
 - [x] **T9.4** Compose `e2e` service using `mcr.microsoft.com/playwright` image, depends on healthy `web`. *Done when:* `docker compose --profile e2e up --exit-code-from e2e` returns 0.
   - *Note:* changed command, same goal: `--exit-code-from` implies `--abort-on-container-exit`, which tore the stack down (API killed, 137) as soon as the one-shot `migrate` exited 0. `docker compose --profile e2e run e2e` starts db → migrate → api → web with their conditions and returns the runner's exit code. `pnpm e2e:docker` wraps it with an isolated project (`compose.e2e.yaml` drops host ports), copies the report out (no bind mount, so no root-owned files) and tears down. Verified: exit 0, 16 passed, nothing left behind. Recorded in `docs/decisions.md`.
 - [x] **T9.5** GitHub Actions: install → lint → typecheck → unit/integration (Postgres service) → Docker build → E2E via Compose; upload Playwright report. *Done when:* pipeline green on `main`.
-  - *Note:* `.github/workflows/ci.yml`: job `checks` (Postgres 16 service; install → lint → format:check → typecheck → unit → API integration) then job `e2e` (`scripts/e2e-docker.sh` builds all images and runs the suite; uploads `playwright-report`). Both jobs green on the first run on `main` (Oct 22, commit `bc6f3cc`, run 39775053281): checks (lint, format, typecheck, unit, integration) and Docker build + E2E, with the report uploaded as an artifact.
+  - *Note:* `.github/workflows/ci.yml`: job `checks` (Postgres 16 service; install → lint → format:check → typecheck → unit → API integration) then job `e2e` (`scripts/e2e-docker.sh` builds all images and runs the suite; uploads `playwright-report`). Both jobs green on the first run on `main` (Oct 22, run 39775053281): checks (lint, format, typecheck, unit, integration) and Docker build + E2E, with the report uploaded as an artifact.
 
 ### Phase 10 — Production images & docs
 
 Commit: `docs: document Docker Compose setup and tradeoffs`
+
+*Status:* done Oct 22 (commits `build: slim the API image, publish only web, add a seed profile` and `docs: finalize README and close the roadmap`). Release gate: cold start from a clean clone passed E2E; branding sweep clean. Only the CI run for these commits is still open (see Definition of done).
 
 - [x] **T10.1** `apps/api/Dockerfile`: multi-stage (deps → build with `pnpm deploy --prod` → runtime `node:22-alpine`), non-root user, Prisma engines included. *Done when:* image < 300 MB and runs.
   - *Note:* pulled forward for T9.4: builds and runs (healthy, serves the E2E suite) with targets `migrate` and `runtime`, `pnpm deploy --prod --legacy --ignore-scripts`, non-root.
@@ -234,10 +236,13 @@ Commit: `docs: document Docker Compose setup and tradeoffs`
   - *Note (Oct 22):* `db` port moved to an opt-in `compose.dev.yaml` (`pnpm db:up` = `docker compose -f compose.yaml -f compose.dev.yaml up -d --wait db`). Not `compose.override.yaml`, which Compose loads automatically. `compose.e2e.yaml` no longer needs to reset the db port. Verified in a throwaway project: `docker compose up --build -d --wait` → db, api, web healthy, migrate exited 0, only web published; `docker compose config` with the dev overlay publishes `127.0.0.1:5433`. `pnpm e2e:docker` → 16 passed. Lint, typecheck, 4 shared + 45 API unit + 99 web + 49 API integration tests green.
 - [x] **T10.5** Optional `seed` service behind a `seed` profile. *Done when:* documented command works.
   - *Note:* `seed` reuses the API `migrate` image (Prisma CLI + tsx), runs `prisma db seed` after `migrate` completes; `SEED_ADMIN_*` pass through from `.env`. Command: `docker compose --profile seed run --rm --build seed` (`--build` because `up --build` skips profile services, so an old seed image can go stale). Verified: run twice → idempotent (`0 created, 14 already present` on the second run), then BFF sign-in as the seeded admin → 200. Documented in README and `development.md`.
-- [ ] **T10.6** README: architecture diagram, prerequisites, env vars, setup, commands, tests, API summary, design decisions, tradeoffs, known limitations, future work. *Done when:* a fresh reader starts the stack from it alone.
+- [x] **T10.6** README: architecture diagram, prerequisites, env vars, setup, commands, tests, API summary, design decisions, tradeoffs, known limitations, future work. *Done when:* a fresh reader starts the stack from it alone.
   - *Note:* README is now an entry point linking topic docs in `docs/`: architecture, data model, API reference, auth & sessions, web app & BFF, testing, development guide, design decisions (tradeoffs, open-decision defaults, known limitations). Phase 9 added the E2E section to `testing.md` and the full Compose stack to `development.md` and the README. Still to do: architecture diagram in the README and a cold-start walkthrough (T10.7). Keep the topic docs current as each phase lands.
-- [ ] **T10.7** Cold-start verification on a clean machine/clone: `cp .env.example .env && docker compose up --build`. *Done when:* full E2E passes against it.
-- [ ] **T10.8** Final branding sweep: `git grep -i` for the company name across tree and history. *Done when:* zero hits.
+  - *Note (Oct 22):* README now opens with what's implemented per challenge part, leads the quick start with the Docker-only path (`cp .env.example .env && docker compose up --build -d --wait`, optional seed, the seeded admin login), and adds a testing overview and a "Tradeoffs, limitations and future work" section. The architecture diagram stays the text diagram in "Architecture at a glance" (renders everywhere, matches `docs/architecture.md`). Claims checked against the code (theme modes, I9/I10 race tests, BFF Origin check). T10.7 followed the README's Docker steps verbatim on a fresh clone.
+- [x] **T10.7** Cold-start verification on a clean machine/clone: `cp .env.example .env && docker compose up --build`. *Done when:* full E2E passes against it.
+  - *Note (Oct 22):* fresh `git clone` → `cp .env.example .env` → `docker compose build --no-cache` (no layer cache, approximating a clean machine) → `docker compose up -d --wait`: db, api, web healthy, migrate exited 0, only web published. Seed profile created 14 users; `GET /` → 307 `/sign-up`; seeded admin sign-in → 200; `docker compose --profile e2e run --rm --build e2e` → 15 passed, 1 skipped (the last-row delete test skips by design when the oldest user is the seeded admin; the unseeded `pnpm e2e:docker` run passed all 16). Ran with `COMPOSE_PROJECT_NAME`/`WEB_PORT` overrides only to avoid the already running dev stack.
+- [x] **T10.8** Final branding sweep: `git grep -i` for the company name across tree and history. *Done when:* zero hits.
+  - *Note (Oct 22):* zero hits in the tree, in every commit's diff and message, and in file names (`git log --all -p`, `--format=%B`, `--name-only`; the only "global" match is `global-setup.ts`). The challenge PDF and local agent instructions stay untracked via `.git/info/exclude` (not `.gitignore`, which would itself contain the name). Re-run before each push.
 
 ## Test matrix
 
@@ -301,15 +306,18 @@ Every challenge requirement maps to at least one task and one test.
 
 ### Definition of done
 
-- [ ] `docker compose up --build` from a clean clone with `.env` brings up a healthy stack at `http://localhost:3000`.
-- [ ] All 9 endpoints implemented and documented (OpenAPI + README examples).
-- [ ] Argon2id hashes only; session checked on every protected request; logout invalidates the session.
-- [ ] Inactive users cannot sign in or rename; createdAt immutable; updatedAt maintained.
-- [ ] Exactly six users per page with correct navigation.
-- [ ] Theme survives browser restart without a flash.
+*Checked Oct 22 against the code and the test results recorded per phase (I1–I14, C1–C7, E1–E6 all green).*
+
+- [x] `docker compose up --build` from a clean clone with `.env` brings up a healthy stack at `http://localhost:3000`.
+- [x] All 9 endpoints implemented and documented (OpenAPI + README examples).
+- [x] Argon2id hashes only; session checked on every protected request; logout invalidates the session.
+- [x] Inactive users cannot sign in or rename; createdAt immutable; updatedAt maintained.
+- [x] Exactly six users per page with correct navigation.
+- [x] Theme survives browser restart without a flash.
 - [ ] Unit, integration and Playwright suites pass locally and in CI.
-- [ ] README complete, including tradeoffs and limitations.
-- [ ] Granular Conventional Commits; zero hiring-company references.
+  - *Note:* all green locally on Oct 22 after Phase 10 (lint, typecheck, 148 unit/component, 49 integration, 16 E2E); CI green up to the Playwright commit. The Phase 10 commits aren't pushed yet. Next step: push and confirm the CI run on `main`.
+- [x] README complete, including tradeoffs and limitations.
+- [x] Granular Conventional Commits; zero hiring-company references.
 
 ## Risks and open decisions
 
@@ -323,12 +331,12 @@ The biggest risk is late Docker/E2E integration; containerize by Phase 5 and run
 | Race between status change and session creation | Rule violation | Row lock in one transaction (T4.2), tested by I10 |
 | Scope creep in polish | Missed core items | Vertical slice (Phases 1–6) before CRUD polish |
 
-**Open decisions** (defaults chosen; record final answers in README):
+**Open decisions** (defaults chosen; record final answers in README). All five defaults kept; final answers are in [decisions.md](decisions.md#open-decisions), linked from the README:
 
-- [ ] Sign-up increments loginsCount — default **yes** (it creates a session).
-- [ ] User deletion — default **hard delete** with session cascade.
-- [ ] Admins may reactivate inactive users — default **yes**.
-- [ ] Session TTL — default **24 h**, no sliding renewal.
-- [ ] Deactivating yourself — default allowed, current session stays valid until logout (alternatively revoke immediately).
+- [x] Sign-up increments loginsCount — default **yes** (it creates a session).
+- [x] User deletion — default **hard delete** with session cascade.
+- [x] Admins may reactivate inactive users — default **yes**.
+- [x] Session TTL — default **24 h**, no sliding renewal.
+- [x] Deactivating yourself — default allowed, current session stays valid until logout (alternatively revoke immediately).
 
 **README tradeoffs to state:** all users are admins by challenge design (production needs RBAC and audit); session ID via BFF cookie + header (production adds CSRF tokens, rotation, rate limiting, lockout, email verification); offset pagination is fine at this scale (cursor pagination for large sets); add structured logs, request IDs, metrics and backups for production.
