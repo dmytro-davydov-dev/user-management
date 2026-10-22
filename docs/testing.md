@@ -35,7 +35,7 @@ Integration tests truncate tables, so they **never use the dev database**:
 - Files run sequentially (`fileParallelism: false`), and each test starts from `TRUNCATE sessions, users`.
 - `createTestApp()` boots the full `AppModule` and listens on a random port; `createAuthSession()` inserts a user plus an active session and returns the `X-Session-Id` header to use.
 
-Start the database first: `docker compose up -d db`.
+Start the database first: `pnpm db:up`.
 
 ## End-to-end tests
 

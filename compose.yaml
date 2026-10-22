@@ -1,4 +1,6 @@
-# Full stack: db → migrate (one-shot) → api → web. Only web is meant for the browser.
+# Full stack: db → migrate (one-shot) → api → web. Only web is published to the host.
+# `--profile seed` adds a one-shot dev seed (`docker compose --profile seed run --rm seed`).
+# Host-side dev publishes the database via compose.dev.yaml (`pnpm db:up`).
 # `--profile e2e` adds the Playwright runner; start it with `docker compose run`, not
 # `up --exit-code-from` (that aborts the stack when the one-shot `migrate` exits).
 # `pnpm e2e:docker` runs it against an isolated stack (see docs/testing.md).
@@ -14,10 +16,6 @@ services:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
       POSTGRES_DB: user_management
-    ports:
-      # Host-side dev and integration tests only; bound to localhost. Host port 5433 avoids
-      # clashing with a locally installed Postgres on 5432.
-      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,6 +34,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: 'no'
+
+  seed:
+    profiles: [seed]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: *database-url
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-change-me-locally}
+    command: ['prisma', 'db', 'seed']
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     restart: 'no'
 
   api:

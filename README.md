@@ -74,7 +74,7 @@ corepack enable
 pnpm install
 cp .env.example .env
 
-docker compose up -d db               # PostgreSQL
+pnpm db:up                            # PostgreSQL on 127.0.0.1:5433
 pnpm --filter @um/api db:migrate      # apply migrations
 pnpm --filter @um/api db:seed         # optional sample data
 pnpm --filter @um/api dev             # API on http://localhost:4000
@@ -93,6 +93,7 @@ Full stack in Docker Compose:
 
 ```bash
 docker compose up --build -d          # app at http://localhost:3000 (WEB_PORT to change)
+docker compose --profile seed run --rm --build seed   # optional sample data
 docker compose down                   # add -v to wipe the database
 ```
 

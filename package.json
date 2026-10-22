@@ -15,6 +15,7 @@
     "test": "pnpm build:shared && pnpm -r --if-present test",
     "prepare": "husky",
     "build:shared": "pnpm --filter @um/shared build",
+    "db:up": "docker compose -f compose.yaml -f compose.dev.yaml up -d --wait db",
     "e2e": "pnpm --filter @um/e2e e2e",
     "e2e:docker": "sh scripts/e2e-docker.sh"
   },

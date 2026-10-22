@@ -15,7 +15,7 @@ corepack enable
 pnpm install                      # also generates the Prisma client
 cp .env.example .env              # one .env at the repo root, read by both apps
 
-docker compose up -d db           # PostgreSQL on 127.0.0.1:5433
+pnpm db:up                        # PostgreSQL on 127.0.0.1:5433 (compose.dev.yaml)
 pnpm --filter @um/api db:migrate  # apply migrations
 pnpm --filter @um/api db:seed     # optional: admin + 13 sample users
 
@@ -23,7 +23,7 @@ pnpm --filter @um/api dev         # API  → http://localhost:4000  (Swagger: /d
 pnpm --filter @um/web dev         # web  → http://localhost:3000
 ```
 
-Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env` (once the sign-in form lands in Phase 6), or sign up a new user.
+Sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from `.env`, or sign up a new user.
 
 ## Environment variables
 
@@ -32,7 +32,7 @@ All variables are listed in [`.env.example`](../.env.example). Both apps validat
 | Variable | Used by | Default | Purpose |
 | --- | --- | --- | --- |
 | `POSTGRES_PASSWORD` | Compose `db` | `localdev` | Database password |
-| `POSTGRES_PORT` | Compose `db` | `5433` | Host port (5433 avoids clashing with a local Postgres on 5432) |
+| `POSTGRES_PORT` | `compose.dev.yaml` | `5433` | Host port for host-side dev (5433 avoids clashing with a local Postgres on 5432) |
 | `DATABASE_URL` | API, Prisma, seed, tests | — (required) | `postgresql://…` connection string |
 | `TEST_DATABASE_URL` | Integration tests | `DATABASE_URL` + `_test` | Override the test database |
 | `API_PORT` | API | `4000` | Listen port |
@@ -40,7 +40,7 @@ All variables are listed in [`.env.example`](../.env.example). Both apps validat
 | `NODE_ENV` | API, seed | `development` | `production` disables Swagger and the seed |
 | `API_INTERNAL_URL` | web (server only) | `http://localhost:4000` | Where the BFF reaches the API |
 | `COOKIE_SECURE` | web | `false` | `true` behind HTTPS |
-| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | seed | `admin@example.com`, `change-me-locally` | Dev admin account |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | seed (host and Compose `seed`) | `admin@example.com`, `change-me-locally` | Dev admin account |
 | `WEB_PORT` | Compose `web` | `3000` | Host port for the web container |
 | `E2E_BASE_URL` | Playwright | `http://localhost:3000` | Stack the E2E suite runs against |
 
@@ -55,6 +55,7 @@ From the repo root:
 | `pnpm lint` | ESLint across the repo |
 | `pnpm format` / `pnpm format:check` | Prettier write / check |
 | `pnpm test` | Unit and component tests for all packages |
+| `pnpm db:up` | Start PostgreSQL only, published on `127.0.0.1:5433` for host-side dev |
 | `pnpm e2e` | Playwright against `E2E_BASE_URL` |
 | `pnpm e2e:docker` | Playwright against a fresh, isolated Compose stack (as in CI) |
 
@@ -73,18 +74,21 @@ Per app:
 
 ## Docker Compose
 
-`compose.yaml` runs the full stack: `db` (healthchecked, named volume `postgres_data`), a one-shot `migrate` (`prisma migrate deploy`), `api` (starts after `migrate` completes, healthchecked on `/health`) and `web` (starts once `api` is healthy, published on `WEB_PORT`). Only `web` is meant for the browser; `db` is also bound to `127.0.0.1:5433` for host-side dev and integration tests. The `e2e` profile adds the Playwright runner.
+`compose.yaml` runs the full stack: `db` (healthchecked, named volume `postgres_data`), a one-shot `migrate` (`prisma migrate deploy`), `api` (starts after `migrate` completes, healthchecked on `/health`) and `web` (starts once `api` is healthy, published on `WEB_PORT`). Only `web` is published to the host. Two profiles add one-shot services: `seed` (the dev seed, after `migrate`) and `e2e` (the Playwright runner).
+
+`compose.dev.yaml` is an opt-in overlay for host-side dev: it publishes `db` on `127.0.0.1:${POSTGRES_PORT:-5433}` so the API, Prisma and the integration tests can reach it. `pnpm db:up` is shorthand for `docker compose -f compose.yaml -f compose.dev.yaml up -d --wait db`. It isn't named `compose.override.yaml` on purpose, because Compose would load that automatically and publish the database on every `docker compose up`.
 
 ```bash
 docker compose up --build -d   # app at http://localhost:3000
 docker compose ps              # all services healthy, migrate exited (0)
-docker compose up -d db        # database only, for host-side dev
+docker compose --profile seed run --rm --build seed   # optional: admin + 13 sample users
+pnpm db:up                     # database only, published for host-side dev
 docker compose down            # keeps data
 docker compose down -v         # destructive: wipes the database volume
 pnpm e2e:docker                # E2E in a separate, throwaway project (see testing.md)
 ```
 
-Images (build context is the repo root, see `.dockerignore`): `apps/api/Dockerfile` has `migrate` and `runtime` targets (`pnpm deploy --prod`, non-root); `apps/web/Dockerfile` ships the Next standalone server (non-root); `e2e/Dockerfile` is based on the Playwright image.
+Images (build context is the repo root, see `.dockerignore`): `apps/api/Dockerfile` has `migrate` (Prisma CLI and dev tooling; also runs the seed) and `runtime` targets. The runtime image is about 260 MB: `pnpm deploy --prod`, then `apps/api/scripts/prune-deploy.mjs` drops what pnpm links as optional peers (the Prisma CLI, TypeScript and their dependencies) and the query compilers for other databases; non-root; `apps/web/Dockerfile` ships the Next standalone server (non-root); `e2e/Dockerfile` is based on the Playwright image.
 
 ## Working on the code
 
@@ -106,8 +110,8 @@ Images (build context is the repo root, see `.dockerignore`): `apps/api/Dockerfi
 | Symptom | Fix |
 | --- | --- |
 | `Invalid environment configuration` on API start | Check `DATABASE_URL` in the root `.env` |
-| `/health` returns 503 | Database not running: `docker compose up -d db` |
+| `/health` returns 503, or Prisma can't reach `localhost:5433` | Database not running or not published: `pnpm db:up` (plain `docker compose up` doesn't publish it) |
 | Cannot find module `../generated/prisma/client` | `pnpm --filter @um/api db:generate` |
 | Web typecheck complains about missing route types | `pnpm --filter @um/web typecheck` runs `next typegen` first; don't call `tsc` directly |
-| Port 5432 already in use | Compose uses host port 5433 by default (`POSTGRES_PORT`) |
+| Port 5432 already in use | `pnpm db:up` uses host port 5433 by default (`POSTGRES_PORT`) |
 | Stuck redirecting between `/sign-in` and `/dashboard` | Shouldn't happen (see [web-app.md](web-app.md#stale-cookies)). Clear the `sid` cookie and report it |

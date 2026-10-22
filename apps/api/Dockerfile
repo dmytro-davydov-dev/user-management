@@ -21,16 +21,18 @@ COPY apps/api apps/api
 RUN pnpm --filter @um/shared build && pnpm --filter @um/api build
 # Production node_modules only (workspace packages copied, not linked).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm --filter @um/api deploy --prod --legacy --ignore-scripts /out
+    pnpm --filter @um/api deploy --prod --legacy --ignore-scripts /out \
+ && node apps/api/scripts/prune-deploy.mjs /out
 
 # --- migrate: one-shot `prisma migrate deploy` (needs the Prisma CLI, a dev dependency) ---
+# Also runs the dev seed (`prisma db seed` → tsx) for the Compose `seed` profile.
 FROM build AS migrate
 WORKDIR /repo/apps/api
-ENV DATABASE_URL=
+ENV DATABASE_URL= PATH=/repo/apps/api/node_modules/.bin:$PATH
 # Sources keep their host file modes; make them readable for the non-root user.
 RUN find /repo/apps/api /repo/packages -path '*/node_modules' -prune -o -exec chmod a+rX {} +
 USER node
-CMD ["node_modules/.bin/prisma", "migrate", "deploy"]
+CMD ["prisma", "migrate", "deploy"]
 
 # --- runtime ---
 FROM node:22-alpine AS runtime
