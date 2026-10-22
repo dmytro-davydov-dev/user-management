@@ -1,0 +1,13 @@
+{
+  "name": "@um/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

@@ -6,7 +6,7 @@ Setting up, running and working on the project locally. For testing details see 
 
 - Node **22** (`.nvmrc`)
 - pnpm **10** via Corepack (`corepack enable`; the version is pinned in `package.json` → `packageManager`)
-- Docker (for PostgreSQL; the full stack in Compose arrives in Phase 10)
+- Docker with Compose v2.24+ (PostgreSQL for host-side dev, the full stack, and E2E)
 
 ## First run
 
@@ -41,6 +41,8 @@ All variables are listed in [`.env.example`](../.env.example). Both apps validat
 | `API_INTERNAL_URL` | web (server only) | `http://localhost:4000` | Where the BFF reaches the API |
 | `COOKIE_SECURE` | web | `false` | `true` behind HTTPS |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | seed | `admin@example.com`, `change-me-locally` | Dev admin account |
+| `WEB_PORT` | Compose `web` | `3000` | Host port for the web container |
+| `E2E_BASE_URL` | Playwright | `http://localhost:3000` | Stack the E2E suite runs against |
 
 ## Commands
 
@@ -53,6 +55,8 @@ From the repo root:
 | `pnpm lint` | ESLint across the repo |
 | `pnpm format` / `pnpm format:check` | Prettier write / check |
 | `pnpm test` | Unit and component tests for all packages |
+| `pnpm e2e` | Playwright against `E2E_BASE_URL` |
+| `pnpm e2e:docker` | Playwright against a fresh, isolated Compose stack (as in CI) |
 
 Per app:
 
@@ -69,14 +73,18 @@ Per app:
 
 ## Docker Compose
 
-Today `compose.yaml` runs only the database (healthchecked, named volume `postgres_data`, bound to `127.0.0.1`). The `migrate`, `api`, `web` and `e2e` services are added in Phases 9–10.
+`compose.yaml` runs the full stack: `db` (healthchecked, named volume `postgres_data`), a one-shot `migrate` (`prisma migrate deploy`), `api` (starts after `migrate` completes, healthchecked on `/health`) and `web` (starts once `api` is healthy, published on `WEB_PORT`). Only `web` is meant for the browser; `db` is also bound to `127.0.0.1:5433` for host-side dev and integration tests. The `e2e` profile adds the Playwright runner.
 
 ```bash
-docker compose up -d db
-docker compose ps
-docker compose down        # keeps data
-docker compose down -v     # destructive: wipes the database volume
+docker compose up --build -d   # app at http://localhost:3000
+docker compose ps              # all services healthy, migrate exited (0)
+docker compose up -d db        # database only, for host-side dev
+docker compose down            # keeps data
+docker compose down -v         # destructive: wipes the database volume
+pnpm e2e:docker                # E2E in a separate, throwaway project (see testing.md)
 ```
+
+Images (build context is the repo root, see `.dockerignore`): `apps/api/Dockerfile` has `migrate` and `runtime` targets (`pnpm deploy --prod`, non-root); `apps/web/Dockerfile` ships the Next standalone server (non-root); `e2e/Dockerfile` is based on the Playwright image.
 
 ## Working on the code
 

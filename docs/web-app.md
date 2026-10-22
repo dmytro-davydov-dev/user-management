@@ -24,7 +24,7 @@ Route groups in parentheses don't appear in URLs; they only share layouts.
 | `POST /api/auth/sign-in` | Same, for `POST /auth/sign-in` |
 | `POST /api/auth/sign-out` | Calls `DELETE /sessions/:id` with the cookie's session, then clears the cookie, even if the API is unreachable (204 either way) |
 | `GET /api/auth/me` | `GET /auth/me`, but returns only `{ user }`: the session object contains the ID and is stripped |
-| `GET /api/auth/clear-session?next=` | Clears a stale cookie and redirects (303) to `/sign-in` or `/sign-up` (allowlisted; anything else goes to `/sign-in`) |
+| `GET /api/auth/clear-session?next=` | Clears a stale cookie and redirects (303) to `/sign-in` or `/sign-up` (allowlisted; anything else goes to `/sign-in`). The `Location` is relative: behind Docker, `request.url` holds the bind address (`http://0.0.0.0:3000`), not the host the browser used |
 | `GET/POST/PATCH/DELETE /api/users[/:id]` | Generic proxy: path, query, method and JSON body forwarded; status and body relayed back |
 
 Rules shared by all handlers ([`lib/server/http.ts`](../apps/web/src/lib/server/http.ts)):
@@ -146,7 +146,7 @@ Read on the server at request time by [`lib/server/env.ts`](../apps/web/src/lib/
 | `COOKIE_SECURE` | `false` | Adds `Secure` to the session cookie |
 | `SESSION_TTL_HOURS` | `24` | Cookie `Max-Age` |
 
-For host-side dev, `next.config.ts` loads the repo-root `.env`; real environment variables always win. The build uses `output: 'standalone'` for the Docker image (Phase 10).
+For host-side dev, `next.config.ts` loads the repo-root `.env`; real environment variables always win. The build uses `output: 'standalone'`; the Docker image (`apps/web/Dockerfile`) runs only the traced `server.js` plus static assets.
 
 ## Code map
 

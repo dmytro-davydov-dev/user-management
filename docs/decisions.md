@@ -17,6 +17,8 @@ Why the system looks the way it does, which defaults were chosen where the requi
 | Errors | One `{ code, message, details? }` shape, closed list of codes | Clients branch on `code`, not on message text | Framework defaults |
 | Pagination | Offset (`page`, `limit ≤ 6`), ordered `createdAt DESC, id DESC` | Matches a page-numbered UI and is fine at this scale; `id` keeps pages stable | Cursor pagination (better for large or fast-changing sets) |
 | User deletion | Hard delete; sessions cascade | Simple and matches the exercise | Soft delete (production, for audit) |
+| E2E data isolation | Unique emails per run (`<label>-<runId>-<n>@e2e.example.com`), one worker, and a fresh database per CI run (isolated Compose project) | Re-runnable against any stack without a reset endpoint in the API; pagination tests see a stable user count | A test-only reset endpoint: faster resets, but production code that must never ship enabled |
+| Running E2E in Compose | `docker compose run e2e` (wrapped by `scripts/e2e-docker.sh`), not `up --exit-code-from e2e` | `--exit-code-from` implies `--abort-on-container-exit`, which stops the whole stack as soon as the one-shot `migrate` exits with 0 | Running migrations inside the API container on start: no one-shot service, but concurrent replicas would race |
 | Theme persistence | `localStorage` (`theme`) + MUI CSS-variable color schemes, applied by an inline script before first paint; OS preference when nothing is saved | No flash on reload, including the first visit with a dark OS; static auth pages stay static | `theme` cookie read by the server (the original plan): no flash for a saved choice, but the server can't know the OS preference on a first visit, and reading cookies in the root layout makes every page dynamic |
 
 ## Open decisions
@@ -43,6 +45,7 @@ Where the requirements leave a choice open, these defaults are implemented.
 | Prisma | `7.10.1` | v8 is a release candidate |
 | Next.js | `15.5.x` | Required ≥ 15; 16 renames middleware and was not needed |
 | MUI | `6.x` | Locked in the plan; `@mui/material-nextjs` v6 supports Next 15 |
+| Playwright | `1.64.1` (exact) | Must match the `mcr.microsoft.com/playwright:v1.64.1-noble` image in `e2e/Dockerfile`; bump both together |
 
 ## Known limitations
 

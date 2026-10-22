@@ -1,0 +1,19 @@
+# Build context is the repo root; keep it small and free of secrets.
+.git
+.github
+.husky
+.claude
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/*.tsbuildinfo
+**/next-env.d.ts
+apps/api/src/generated
+e2e/playwright-report
+e2e/test-results
+.env
+.env.*
+!.env.example
+docs
+*.md

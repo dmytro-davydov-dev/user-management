@@ -101,7 +101,11 @@ apps/
 packages/
   shared/                   Zod contracts and types (@um/shared)
 docs/                       this documentation and the implementation plans
-compose.yaml                Docker Compose (database today; full stack in Phase 10)
+e2e/                        Playwright suite (@um/e2e): tests/*.spec.ts, playwright.config.ts, Dockerfile
+scripts/e2e-docker.sh       E2E against a fresh, isolated Compose stack (`pnpm e2e:docker`)
+compose.yaml                Docker Compose: db → migrate → api → web, plus the `e2e` profile
+compose.e2e.yaml            Override for the isolated E2E project (no host ports)
+.github/workflows/ci.yml    CI: lint, typecheck, unit + integration, Docker build, E2E
 ```
 
 ## Tech stack
@@ -114,7 +118,7 @@ compose.yaml                Docker Compose (database today; full stack in Phase 
 | API | NestJS 11 (Express), Zod 4, `@nestjs/swagger` |
 | Data | PostgreSQL 16, Prisma 7 (`prisma-client` generator, `@prisma/adapter-pg`) |
 | Passwords | Argon2id (`argon2`) |
-| Tests | Vitest 3, Supertest, React Testing Library, Playwright (Phase 9) |
+| Tests | Vitest 3, Supertest, React Testing Library, Playwright 1.64 |
 | Tooling | ESLint (flat config, typescript-eslint, Next and React Hooks plugins), Prettier, Husky + lint-staged |
 
 Version pins and the reasons for them are recorded in [decisions.md](decisions.md).

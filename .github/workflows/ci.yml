@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck, unit and integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: user_management
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d user_management"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      # Integration tests use (and create) user_management_test from this URL.
+      DATABASE_URL: postgresql://app:ci@localhost:5432/user_management
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version from package.json → packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm --filter @um/api test:int
+
+  e2e:
+    name: Docker build and E2E (Compose)
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Builds the api, migrate, web and e2e images, runs Playwright against a fresh
+      # stack and tears it down.
+      - run: sh scripts/e2e-docker.sh
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 14
+          if-no-files-found: ignore

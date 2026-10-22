@@ -2,7 +2,7 @@
 
 Full-stack back-office app for managing users and their sessions: sign-up / sign-in, a protected dashboard with paginated user CRUD, and a persisted light/dark theme. Runs with a single `docker compose up`.
 
-> **Status:** work in progress. Phases 1–7 (bootstrap, persistence, users API, auth & sessions, web shell & BFF, sign-up/sign-in, users dashboard) are done; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
+> **Status:** work in progress. Phases 1–8 (bootstrap, persistence, users API, auth & sessions, web shell & BFF, sign-up/sign-in, users dashboard, theme & polish) are done and the Playwright E2E suite and CI (Phase 9) are in place; see the [detailed implementation plan](docs/user-management-detailed-implementation-plan.md) for current progress.
 
 ## Documentation
 
@@ -86,12 +86,13 @@ Checks:
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
 pnpm --filter @um/api test:int        # API integration tests (real PostgreSQL)
+pnpm e2e:docker                       # Playwright E2E against a fresh Compose stack
 ```
 
-Full stack in Docker Compose (once the services land in Phase 10):
+Full stack in Docker Compose:
 
 ```bash
-docker compose up --build -d          # app at http://localhost:3000
+docker compose up --build -d          # app at http://localhost:3000 (WEB_PORT to change)
 docker compose down                   # add -v to wipe the database
 ```
 

@@ -1,0 +1,9 @@
+# Isolated E2E run: a separate Compose project with its own database volume and no host
+# ports, so it never touches dev data or clashes with a running dev stack.
+#   docker compose -f compose.yaml -f compose.e2e.yaml -p user-management-e2e \
+#     --profile e2e up --build --exit-code-from e2e
+services:
+  db:
+    ports: !reset []
+  web:
+    ports: !reset []

@@ -14,7 +14,9 @@
     "format:check": "prettier --check .",
     "test": "pnpm build:shared && pnpm -r --if-present test",
     "prepare": "husky",
-    "build:shared": "pnpm --filter @um/shared build"
+    "build:shared": "pnpm --filter @um/shared build",
+    "e2e": "pnpm --filter @um/e2e e2e",
+    "e2e:docker": "sh scripts/e2e-docker.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

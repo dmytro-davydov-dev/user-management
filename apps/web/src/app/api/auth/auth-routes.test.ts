@@ -149,10 +149,11 @@ describe('BFF auth routes (T5.3)', () => {
   it('clear-session removes the cookie and redirects only to auth pages', async () => {
     const res = clearSession(bffRequest('/api/auth/clear-session?next=/sign-up'));
     expect(res.status).toBe(303);
-    expect(res.headers.get('location')).toBe('http://localhost:3000/sign-up');
+    // Relative, so it never leaks the server's bind address (http://0.0.0.0:3000 in Docker).
+    expect(res.headers.get('location')).toBe('/sign-up');
     expect(setCookies(res).get('sid')).toMatch(/Max-Age=0/);
 
     const evil = clearSession(bffRequest('/api/auth/clear-session?next=https://evil.example'));
-    expect(evil.headers.get('location')).toBe('http://localhost:3000/sign-in');
+    expect(evil.headers.get('location')).toBe('/sign-in');
   });
 });

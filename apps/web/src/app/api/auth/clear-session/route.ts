@@ -15,7 +15,10 @@ const ALLOWED_TARGETS = new Set(['/sign-in', '/sign-up']);
 export function GET(request: NextRequest): NextResponse {
   const next = request.nextUrl.searchParams.get('next') ?? '/sign-in';
   const target = ALLOWED_TARGETS.has(next) ? next : '/sign-in';
-  const response = NextResponse.redirect(new URL(target, request.url), 303);
+  // Relative Location: behind Docker/proxies `request.url` holds the bind address
+  // (http://0.0.0.0:3000), not the host the browser used. `NextResponse.redirect` needs
+  // an absolute URL, so set the header directly.
+  const response = new NextResponse(null, { status: 303, headers: { location: target } });
   clearSessionCookie(response, getServerEnv());
   return response;
 }
