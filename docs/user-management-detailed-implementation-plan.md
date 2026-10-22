@@ -153,6 +153,7 @@ Commit: `feat(web): add authentication flows`
   - *Note:* form-level `Alert` for 401/403/network errors (the 401 copy never says which field was wrong); the password is cleared and focused for the retry. Mapping is shared in `components/auth/form-errors.ts`.
 - [x] **T6.3** On success: invalidate `['me']` query, `router.replace('/dashboard')`. *Done when:* back button does not return to the form.
   - *Note:* `useAuthSuccess()`. Component tests assert `replace` (never `push`) and the `['me']` invalidation; the browser check confirmed Back lands on the page before the form. Middleware also bounces an authenticated user off the auth pages.
+  - *Note (Oct 22, requirements audit):* the challenge's Part 1 welcome page shows `Hello <first_name>`; Part 2 replaces that page with the dashboard, but nothing said "Hello" anymore (the app bar showed the full name, hidden on phones). The app bar now shows `Hello, <first name>` at every width (phones drop the app name instead). New `app-shell.test.tsx` covers the greeting and that Sign out returns to `/sign-in`; E2 asserts the greeting after sign-up and sign-in.
 - [x] **T6.4** Cross-links sign-up ⇄ sign-in; accessible labels, autocomplete attributes, keyboard submit. *Done when:* axe check shows no violations.
   - *Note:* axe-core (dev dependency) runs on both pages inside the auth layout: zero violations (`color-contrast` disabled in jsdom; covered by Playwright later). `autocomplete`: `given-name`, `family-name`, `email`, `new-password` / `username`, `current-password`. Enter submits (tested).
 

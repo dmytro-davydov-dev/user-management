@@ -39,7 +39,7 @@ test('sign up → dashboard → sign out → sign in (E2)', async ({ page }) => 
   await expect(page).toHaveURL('/sign-up');
 
   await signUp(page, user);
-  await expect(page.getByTestId('current-user')).toHaveText(fullName(user));
+  await expect(page.getByTestId('greeting')).toHaveText(`Hello, ${user.firstName}`);
   const ownRow = page.getByRole('row', { name: new RegExp(fullName(user)) });
   await expect(ownRow).toContainText('You');
   // Cells after the row header: Email, Status, Logins, … (sign-up counts as the first login).
@@ -50,7 +50,7 @@ test('sign up → dashboard → sign out → sign in (E2)', async ({ page }) => 
   await expect(page).toHaveURL('/sign-in');
 
   await signIn(page, user);
-  await expect(page.getByTestId('current-user')).toHaveText(fullName(user));
+  await expect(page.getByTestId('greeting')).toHaveText(`Hello, ${user.firstName}`);
   await expect(ownRow.getByRole('cell').nth(2)).toHaveText('2');
 });
 

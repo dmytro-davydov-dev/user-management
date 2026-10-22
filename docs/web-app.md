@@ -10,7 +10,7 @@ Next.js 15 (App Router) in `apps/web`. It renders the UI and acts as a **backend
 | --- | --- | --- |
 | `/` | Server component | Confirms the session with the API → `/dashboard` if valid, else `/sign-up` |
 | `/sign-up`, `/sign-in` | `(auth)` group | Centered card with the sign-up / sign-in form ([Auth forms](#auth-forms)). Redirected to `/dashboard` by middleware when a session cookie exists |
-| `/dashboard[?page=N]` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (user name, theme toggle, sign out). The users table and dialogs ([Users dashboard](#users-dashboard)) |
+| `/dashboard[?page=N]` | `(protected)` group | Rendered only after `requireUser()` confirms the session; wrapped in the app shell (`Hello, <first name>` greeting, which replaces the challenge's welcome page; theme toggle; sign out). The users table and dialogs ([Users dashboard](#users-dashboard)) |
 | `/api/*` | Route handlers | The BFF (below) |
 | anything else | `not-found.tsx` | 404 page with a link to `/` |
 
@@ -115,7 +115,7 @@ Behaviour shared by both:
 
 | Action | What happens |
 | --- | --- |
-| Rename yourself | Saved like any user, then `router.refresh()` re-renders the server-side app bar with the new name |
+| Rename yourself | Saved like any user, then `router.refresh()` re-renders the server-side app bar, so the greeting shows the new name |
 | Deactivate yourself | The edit dialog warns first. Your current session **stays valid** until you sign out (the API's default, see [decisions](decisions.md#open-decisions)); you can't sign in again or rename yourself until someone reactivates you |
 | Delete yourself | The dialog says you'll be signed out. The API deletes your sessions with the account; the app then calls sign-out (clears the cookie), clears the query cache and goes to `/sign-in` |
 

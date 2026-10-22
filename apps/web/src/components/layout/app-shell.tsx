@@ -35,16 +35,22 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
     <Box sx={{ minHeight: '100dvh', bgcolor: 'background.default' }}>
       <AppBar position="sticky" sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar sx={{ gap: 1 }}>
-          <Typography variant="h6" component="span" sx={{ fontWeight: 700, flexGrow: 1 }}>
+          {/* Phones drop the app name so the greeting always fits. */}
+          <Typography
+            variant="h6"
+            component="span"
+            sx={{ fontWeight: 700, display: { xs: 'none', sm: 'block' } }}
+          >
             User Management
           </Typography>
           <Typography
             variant="body2"
             color="text.secondary"
-            sx={{ display: { xs: 'none', sm: 'block' } }}
-            data-testid="current-user"
+            noWrap
+            sx={{ flexGrow: 1, textAlign: { sm: 'right' } }}
+            data-testid="greeting"
           >
-            {user.firstName} {user.lastName}
+            Hello, {user.firstName}
           </Typography>
           <Tooltip title="Toggle light/dark theme">
             <IconButton onClick={toggleMode} aria-label="Toggle theme">

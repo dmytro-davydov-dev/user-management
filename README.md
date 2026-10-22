@@ -5,9 +5,9 @@ Full-stack back-office app for managing users and their sessions: sign-up / sign
 **What's in it**
 
 - **Backend:** REST API for users and sessions, covering create, list (paginated), update, delete, sign-up, sign-in and session termination. It enforces the domain rules: `createdAt` is immutable, `updatedAt` is always bumped, inactive users can't be renamed or start sessions.
-- **Sign-up / sign-in:** sign-up is the landing page, with links between it and sign-in. Passwords are typed twice and checked in the browser before the request goes out. Both flows start a session and open the dashboard. The session ID goes with every later request, and "Sign out" ends the session.
+- **Sign-up / sign-in:** sign-up is the landing page, with links between it and sign-in. Passwords are typed twice and checked in the browser before the request goes out. Both flows start a session and open the dashboard, which takes the place of the welcome page and greets you with `Hello, <first name>`. A visit with an active session goes straight there. The session ID goes with every later request, and "Sign out" ends the session and returns to sign-in.
 - **Dashboard:** only for signed-in users. Six users per page, with create, edit and delete; it switches to cards on phones.
-- **Themes:** light, dark or system, remembered across browser restarts without a flash of the wrong theme.
+- **Themes:** a light/dark toggle (the OS setting applies until you choose), remembered across browser restarts without a flash of the wrong theme.
 - **Tests:** unit, component, API integration (real PostgreSQL) and Playwright E2E, all run in CI.
 - **Containers:** `docker compose up --build` starts PostgreSQL, a one-shot migration, the API and the web app, with non-root images and healthchecks.
 
