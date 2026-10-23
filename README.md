@@ -93,7 +93,7 @@ docker compose down                                   # stop; add -v to wipe the
 
 Only the web app is published on the host. The browser talks to the Next.js server, which calls the API on the internal Compose network.
 
-### Develop on the host
+### Run it and develop on the host
 
 Requires Node 22 (`.nvmrc`), pnpm 10 (via Corepack) and Docker for PostgreSQL.
 
@@ -130,7 +130,7 @@ Environment variables, every command and troubleshooting tips: [docs/development
 
 CI (`.github/workflows/ci.yml`) runs lint, format, typecheck, unit and integration tests, then builds the images and runs the E2E suite against a fresh Compose stack. Details: [docs/testing.md](docs/testing.md).
 
-## Tradeoffs, limitations and future work
+## Tradeoffs, limitations and possible improvements for production
 
 Full list with alternatives in [docs/decisions.md](docs/decisions.md). The main points:
 

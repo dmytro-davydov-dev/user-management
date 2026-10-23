@@ -315,8 +315,8 @@ Every challenge requirement maps to at least one task and one test.
 - [x] Inactive users cannot sign in or rename; createdAt immutable; updatedAt maintained.
 - [x] Exactly six users per page with correct navigation.
 - [x] Theme survives browser restart without a flash.
-- [ ] Unit, integration and Playwright suites pass locally and in CI.
-  - *Note:* all green locally on Oct 22 after Phase 10 (lint, typecheck, 148 unit/component, 49 integration, 16 E2E); CI green up to the Playwright commit. The Phase 10 commits aren't pushed yet. Next step: push and confirm the CI run on `main`.
+- [x] Unit, integration and Playwright suites pass locally and in CI.
+  - *Note:* all green locally on Oct 22 after Phase 10 (lint, typecheck, 148 unit/component, 49 integration, 16 E2E); CI green up to the Playwright commit. After the history cleanup, CI is green on `main` for every pushed commit (checked Oct 23).
 - [x] README complete, including tradeoffs and limitations.
 - [x] Granular Conventional Commits; zero hiring-company references.
 
