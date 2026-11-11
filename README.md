@@ -24,6 +24,7 @@ Full-stack back-office app for managing users and their sessions: sign-up / sign
 | [Testing](docs/testing.md)                                                  | Test layers, how to run them, the integration test database, notable tests                          |
 | [Development guide](docs/development.md)                                    | Setup, environment variables, commands, working on the code, troubleshooting                        |
 | [Design decisions](docs/decisions.md)                                       | Key choices and alternatives, open-decision defaults, version pins, known limitations               |
+| [Future improvements](docs/future_improvements.md)                          | Prioritized production-readiness roadmap: security, operations, data, product                       |
 | [Implementation plan](docs/user-management-detailed-implementation-plan.md) | Phases, tasks, test matrix, progress ([original plan](docs/user-management-implementation-plan.md)) |
 
 ## Architecture at a glance
@@ -133,7 +134,7 @@ CI (`.github/workflows/ci.yml`) runs lint, format, typecheck, unit and integrati
 
 ## Tradeoffs, limitations and possible improvements for production
 
-Full list with alternatives in [docs/decisions.md](docs/decisions.md). The main points:
+Full list with alternatives in [docs/decisions.md](docs/decisions.md); a prioritized production roadmap is in [docs/future_improvements.md](docs/future_improvements.md). The main points:
 
 - **Everyone is an admin.** The challenge asks for it. Production needs roles, server-side authorization and an audit trail.
 - **Sessions are database rows.** That means instant revocation, at the cost of one query per request. IDs are stored as-is, never rotated and never purged. Next steps: hash them at rest, rotate on privilege changes, add a cleanup job and maybe a cache.
