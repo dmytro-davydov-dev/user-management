@@ -33,10 +33,10 @@ This doc follows a user through the app, from the first page load to sign-out. A
 
 ```mermaid
 flowchart LR
-  db[(db<br/>postgres:16)] -- healthy --> migrate[migrate<br/>prisma migrate deploy<br/>one-shot]
-  migrate -- exited 0 --> api[api :4000<br/>NestJS]
-  api -- healthy<br/>GET /health --> web[web :3000<br/>Next.js]
-  migrate -. "--profile seed" .-> seed[seed<br/>admin + 13 users]
+  db[("db<br/>postgres:16")] -- "healthy" --> migrate["migrate<br/>prisma migrate deploy<br/>one-shot"]
+  migrate -- "exited 0" --> api["api :4000<br/>NestJS"]
+  api -- "healthy<br/>GET /health" --> web["web :3000<br/>Next.js"]
+  migrate -.->|"--profile seed"| seed["seed<br/>admin + 13 users"]
   browser((Browser)) -- "only published port" --> web
 ```
 
@@ -90,7 +90,7 @@ sequenceDiagram
   B->>W: POST { firstName, lastName, email, password }
   W->>W: reject cross-site (Origin / Sec-Fetch-Site)
   W->>A: POST /auth/sign-up (body only, no browser headers)
-  A->>A: @Public() skips SessionGuard; ZodValidationPipe (strict)
+  A->>A: @Public() skips SessionGuard, ZodValidationPipe (strict)
   A->>A: Argon2id hash
   A->>D: BEGIN
   A->>D: INSERT users
@@ -98,8 +98,8 @@ sequenceDiagram
   A->>D: INSERT sessions (expires_at = now + 24h)
   A->>D: UPDATE users SET logins_count = logins_count + 1
   A->>D: COMMIT
-  A-->>W: 201 { id: <sessionId>, user }
-  W->>W: Set-Cookie sid=<sessionId>; HttpOnly; SameSite=Lax
+  A-->>W: 201 { id: sessionId, user }
+  W->>W: Set-Cookie sid=sessionId (HttpOnly, SameSite=Lax)
   W-->>B: 201 { user }   (session ID removed from the body)
   B->>B: invalidate ['me'], router.replace('/dashboard')
 ```
@@ -282,9 +282,9 @@ sequenceDiagram
   B->>W: POST /api/auth/sign-out (cookie)
   W->>A: DELETE /sessions/:sid (X-Session-Id: sid)
   A->>A: SessionGuard with @AllowEndedSession (idempotent)
-  A->>D: check ownership; UPDATE sessions SET terminated_at = now()<br/>WHERE id = ? AND terminated_at IS NULL
+  A->>D: check ownership, then UPDATE sessions SET terminated_at = now()<br/>WHERE id = ? AND terminated_at IS NULL
   A-->>W: 204
-  W-->>B: 204 + Set-Cookie sid=; Max-Age=0  (cleared even if the API is down)
+  W-->>B: 204 + Set-Cookie sid="" Max-Age=0 (cleared even if the API is down)
   B->>B: queryClient.clear(), router.replace('/sign-in')
 ```
 

@@ -52,7 +52,7 @@ sequenceDiagram
   A->>A: ZodValidationPipe (page, limit ≤ 6)
   A->>D: COUNT + SELECT … ORDER BY created_at DESC, id DESC
   A-->>W: 200 { data, pagination }
-  W-->>B: 200 (body relayed; on 401 the cookie is cleared)
+  W-->>B: 200 (body relayed, on 401 the cookie is cleared)
 ```
 
 Server-rendered pages follow the same path without the browser hop: the `(protected)` layout calls `GET /auth/me` with the cookie's session ID before rendering anything.
@@ -73,7 +73,7 @@ Every payload is defined once as a Zod schema and used in three places:
 | `pagination.ts` | `PaginationQuery`, `PaginatedResponse<T>`, `USERS_PAGE_SIZE = 6` |
 | `errors.ts` | `ApiError` (`{ code, message, details? }`) and the closed list of error codes |
 
-The package builds to CommonJS in `dist/` (`pnpm build:shared`); both apps depend on it via `workspace:*`.
+The package builds to CommonJS in `dist/` (`pnpm build:shared`); both apps depend on it via `workspace:*`. At runtime (Node, Next.js, Vitest) the apps load `dist/`. For type-checking, the package also exports a custom `@um/source` condition that points at `src/index.ts`, and the apps' `tsconfig.json` enable it (`customConditions`). So the editor and `tsc` see the shared sources directly: no `Cannot find module '@um/shared'` on a fresh clone, and no stale types after editing a schema. The API's emit config (`tsconfig.build.json`) turns the condition off, so the shared sources are not compiled into `apps/api/dist`.
 
 ## Repository layout
 

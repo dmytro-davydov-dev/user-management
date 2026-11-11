@@ -9,7 +9,7 @@ A session is a database row with a random UUID. Sign-up and sign-in create one a
 ```mermaid
 stateDiagram-v2
   [*] --> Active: sign-up / sign-in / POST /sessions
-  Active --> Terminated: DELETE /sessions/:id
+  Active --> Terminated: DELETE /sessions/{id}
   Active --> Expired: now ≥ expiresAt
   Active --> [*]: user deleted (cascade)
   Terminated --> [*]

@@ -92,7 +92,7 @@ Images (build context is the repo root, see `.dockerignore`): `apps/api/Dockerfi
 
 ## Working on the code
 
-- **Change a request or response shape:** edit the Zod schema in `packages/shared`, then run `pnpm build:shared`. The API validation, the OpenAPI docs and the web client types all follow from it.
+- **Change a request or response shape:** edit the Zod schema in `packages/shared`. The editor and `pnpm typecheck` pick it up immediately (they read the shared sources); run `pnpm build:shared` before running the apps or their tests, which load the built `dist/`. The API validation, the OpenAPI docs and the web client types all follow from it.
 - **Add an API endpoint:** controller method with `ZodValidationPipe` and Swagger decorators (`ApiJsonBody`, `ApiJsonResponse`, `ApiErrors` from `src/docs/openapi.ts`). Routes are protected by default; add `@Public()` only on purpose. Extend the OpenAPI completeness test.
 - **Expose an endpoint to the browser:** add it to the BFF allowlist (`PROXIED_PATH` in `app/api/[...path]/route.ts`) only if its response never contains a session ID. Otherwise write a dedicated handler.
 - **Throw errors** with `ApiException(status, code, message, details?)` so they match the shared error shape.

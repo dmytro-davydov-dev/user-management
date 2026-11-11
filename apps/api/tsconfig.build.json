@@ -5,6 +5,7 @@
     "outDir": "dist",
     "rootDir": "src",
     "declaration": false,
+    "customConditions": [],
     "types": ["node"]
   },
   "include": ["src"],

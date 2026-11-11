@@ -71,7 +71,7 @@ sequenceDiagram
   L->>L: GET /auth/me → 401
   L-->>B: 307 /api/auth/clear-session?next=/sign-in
   B->>C: GET
-  C-->>B: 303 /sign-in + Set-Cookie sid=; Max-Age=0
+  C-->>B: 303 /sign-in + Set-Cookie sid="" Max-Age=0
   B->>M: GET /sign-in (no cookie) → page renders
 ```
 

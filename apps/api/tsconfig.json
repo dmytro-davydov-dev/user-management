@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "customConditions": ["@um/source"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "types": ["node", "vitest/globals"]
