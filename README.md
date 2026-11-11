@@ -15,6 +15,7 @@ Full-stack back-office app for managing users and their sessions: sign-up / sign
 
 | Doc                                                                         | Covers                                                                                              |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [Application flow](docs/app_flow.md)                                        | End-to-end user journeys across browser, BFF, API and DB, mapped to requirements and tests          |
 | [Architecture](docs/architecture.md)                                        | Components, request lifecycle, shared contracts, repository layout, tech stack                      |
 | [Data model](docs/data-model.md)                                            | Tables, indexes, invariants and how they're enforced, migrations, seed data                         |
 | [REST API reference](docs/api.md)                                           | All endpoints with examples, validation rules, the error format and codes                           |
